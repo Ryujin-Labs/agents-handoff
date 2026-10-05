@@ -1,0 +1,37 @@
+{
+  "name": "agents-handoff",
+  "version": "0.1.0",
+  "description": "Write and receive HANDOFF.md software-change handoffs between developers and their coding agents.",
+  "author": {
+    "name": "Emir Furkan Bilici"
+  },
+  "homepage": "https://github.com/Ryujin-Labs/agents-handoff",
+  "repository": "https://github.com/Ryujin-Labs/agents-handoff",
+  "license": "MIT",
+  "keywords": [
+    "handoff",
+    "agents",
+    "api",
+    "breaking-changes",
+    "mcp"
+  ],
+  "skills": "./skills/",
+  "mcpServers": "./.mcp.json",
+  "interface": {
+    "displayName": "Agents Handoff",
+    "shortDescription": "Hand a finished change to another team's agent",
+    "longDescription": "Turns the change you just finished into a short, structured HANDOFF.md that another developer's coding agent can act on: what changed, what they must do, and what not to build. Reads one a teammate sent you, narrowed to your repository. Local-first: nothing leaves your machine unless you pick a channel.",
+    "developerName": "Ryujin Labs",
+    "category": "Developer Tools",
+    "capabilities": [
+      "Read",
+      "Write"
+    ],
+    "websiteURL": "https://github.com/Ryujin-Labs/agents-handoff",
+    "defaultPrompt": [
+      "Write a handoff for the mobile team",
+      "Receive this handoff and plan the work",
+      "Where can I send this handoff?"
+    ]
+  }
+}

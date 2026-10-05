@@ -1,0 +1,46 @@
+{
+  "name": "agents-handoff-claude-code",
+  "version": "0.1.0",
+  "description": "Claude Code integration for Agents Handoff: the /handoff and /handoff-receive skills, as a plugin and as installable project skills.",
+  "license": "MIT",
+  "author": "Emir Furkan Bilici",
+  "homepage": "https://github.com/Ryujin-Labs/agents-handoff/tree/main/packages/integrations/claude-code#readme",
+  "bugs": {
+    "url": "https://github.com/Ryujin-Labs/agents-handoff/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Ryujin-Labs/agents-handoff.git",
+    "directory": "packages/integrations/claude-code"
+  },
+  "keywords": [
+    "claude-code",
+    "claude-code-plugin",
+    "skills",
+    "handoff",
+    "agents"
+  ],
+  "type": "module",
+  "main": "./dist/src/index.js",
+  "types": "./dist/src/index.d.ts",
+  "files": [
+    "dist/src",
+    "src",
+    "skills",
+    ".claude-plugin",
+    "README.md",
+    ".mcp.json"
+  ],
+  "engines": {
+    "node": ">=20.10.0"
+  },
+  "scripts": {
+    "build": "tsc -b",
+    "skills": "node scripts/write-skills.mjs",
+    "skills:check": "node scripts/write-skills.mjs --check",
+    "prepack": "tsc -b"
+  },
+  "dependencies": {
+    "agents-handoff-core": "^0.1.0"
+  }
+}

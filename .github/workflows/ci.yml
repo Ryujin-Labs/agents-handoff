@@ -1,0 +1,96 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+        node: ['20.x', '22.x', '24.x']
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+          cache: npm
+
+      # The git collectors run real `git` against real temporary repositories, so the
+      # runner needs an identity for the fixture commits.
+      - name: Configure git for fixtures
+        run: |
+          git config --global user.email "ci@example.com"
+          git config --global user.name "CI"
+          git config --global init.defaultBranch main
+
+      - run: npm ci
+      - run: npm run typecheck
+      # Checks both the plugin's skills and this repository's own .claude/skills copy.
+      - name: Generated skills must be current
+        run: node packages/integrations/claude-code/scripts/write-skills.mjs --check
+      - run: npm run test:only
+
+  examples:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.x'
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - name: Every shipped example must validate strictly
+        run: |
+          for file in examples/*/HANDOFF.md; do
+            node packages/cli/dist/src/bin.js validate "$file" --strict
+          done
+
+  package:
+    # What npm would publish: every package must carry its built code and its licence, and
+    # nothing from the test tree.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.x'
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - name: Tarballs contain what they should
+        run: |
+          for ws in packages/core packages/mcp packages/cli packages/integrations/claude-code; do
+            files=$(cd "$ws" && npm pack --dry-run --json | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>console.log(JSON.parse(s)[0].files.map(f=>f.path).join("\n")))')
+            echo "$files" | grep -q '^LICENSE$' || { echo "$ws: no LICENSE"; exit 1; }
+            echo "$files" | grep -q '^dist/src/' || { echo "$ws: no dist/src"; exit 1; }
+            if echo "$files" | grep -q '/test/'; then echo "$ws: ships tests"; exit 1; fi
+          done
+
+
+  website:
+    # The landing page and the docs. The docs are generated from this repository's Markdown,
+    # so a README or docs/ change that breaks them fails here, not on the host.
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: website
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.x'
+          cache: npm
+          cache-dependency-path: website/package-lock.json
+      - run: npm ci
+      - run: npm run build

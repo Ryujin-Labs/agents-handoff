@@ -1,0 +1,4 @@
+# Generated from the repository's Markdown by scripts/sync-docs.mjs. Edit the sources.
+src/content/docs/*
+!src/content/docs/index.mdx
+.astro/

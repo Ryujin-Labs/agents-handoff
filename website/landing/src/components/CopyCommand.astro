@@ -1,0 +1,81 @@
+---
+interface Props {
+  command: string;
+  /** Shown before the command, e.g. a prompt character. */
+  prefix?: string;
+}
+
+const { command, prefix } = Astro.props;
+---
+
+<div class="copy">
+  <code>
+    {prefix && <span class="prefix" aria-hidden="true">{prefix}</span>}
+    {command}
+  </code>
+  <button type="button" data-copy={command} aria-label={`Copy: ${command}`}>
+    <span data-label>Copy</span>
+  </button>
+</div>
+
+<script>
+  for (const button of document.querySelectorAll<HTMLButtonElement>('[data-copy]')) {
+    button.addEventListener('click', async () => {
+      const label = button.querySelector('[data-label]');
+      try {
+        await navigator.clipboard.writeText(button.dataset.copy ?? '');
+        if (label) label.textContent = 'Copied';
+      } catch {
+        if (label) label.textContent = 'Press ⌘C';
+      }
+      setTimeout(() => {
+        if (label) label.textContent = 'Copy';
+      }, 1600);
+    });
+  }
+</script>
+
+<style>
+  .copy {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    max-width: 100%;
+    padding: 6px 6px 6px 16px;
+    background: var(--code-bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+  }
+
+  code {
+    flex: 1;
+    min-width: 0;
+    overflow-x: auto;
+    white-space: nowrap;
+    font-size: 14px;
+    color: var(--fg);
+    scrollbar-width: none;
+  }
+
+  .prefix {
+    color: var(--fg-faint);
+    margin-right: 8px;
+    user-select: none;
+  }
+
+  button {
+    flex: none;
+    height: 32px;
+    padding: 0 12px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border-strong);
+    background: var(--bg-elevated);
+    color: var(--fg-muted);
+    font: 500 13px/1 var(--font-sans);
+    cursor: pointer;
+  }
+
+  button:hover {
+    color: var(--fg);
+  }
+</style>

@@ -1,0 +1,50 @@
+{
+  "name": "agents-handoff-core",
+  "version": "0.1.0",
+  "description": "Core of the Agents Handoff protocol: schema, Markdown format, git context collection, validation, storage.",
+  "license": "MIT",
+  "author": "Emir Furkan Bilici",
+  "homepage": "https://github.com/Ryujin-Labs/agents-handoff/tree/main/packages/core#readme",
+  "bugs": {
+    "url": "https://github.com/Ryujin-Labs/agents-handoff/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Ryujin-Labs/agents-handoff.git",
+    "directory": "packages/core"
+  },
+  "keywords": [
+    "handoff",
+    "agents",
+    "coding-agent",
+    "protocol",
+    "markdown",
+    "git",
+    "breaking-changes"
+  ],
+  "type": "module",
+  "main": "./dist/src/index.js",
+  "types": "./dist/src/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/src/index.d.ts",
+      "default": "./dist/src/index.js"
+    }
+  },
+  "files": [
+    "dist/src",
+    "src",
+    "README.md"
+  ],
+  "engines": {
+    "node": ">=20.10.0"
+  },
+  "scripts": {
+    "build": "tsc -b",
+    "test": "node --test dist/test",
+    "prepack": "tsc -b"
+  },
+  "dependencies": {
+    "yaml": "^2.6.1"
+  }
+}

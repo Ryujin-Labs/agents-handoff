@@ -1,0 +1,20 @@
+{
+  "name": "agents-handoff-website",
+  "private": true,
+  "type": "module",
+  "description": "The Agents Handoff landing page and documentation site.",
+  "workspaces": [
+    "landing",
+    "docs"
+  ],
+  "scripts": {
+    "dev:landing": "npm run dev --workspace landing",
+    "dev:docs": "npm run dev --workspace docs",
+    "build": "npm run build --workspaces",
+    "preview:landing": "npm run preview --workspace landing",
+    "preview:docs": "npm run preview --workspace docs"
+  },
+  "engines": {
+    "node": ">=22.12.0"
+  }
+}

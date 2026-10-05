@@ -1,0 +1,35 @@
+{
+  "name": "agents-handoff-monorepo",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Agents Handoff - a handoff protocol for software changes, built for developers and their coding agents.",
+  "license": "MIT",
+  "engines": {
+    "node": ">=20.10.0"
+  },
+  "workspaces": [
+    "packages/core",
+    "packages/cli",
+    "packages/mcp",
+    "packages/integrations/claude-code"
+  ],
+  "scripts": {
+    "build": "tsc -b packages/core packages/integrations/claude-code packages/mcp packages/cli",
+    "clean": "tsc -b --clean packages/core packages/cli && rm -rf packages/*/dist packages/integrations/*/dist",
+    "typecheck": "tsc -b packages/core packages/integrations/claude-code packages/mcp packages/cli",
+    "test": "npm run build && node --test packages/core/dist/test/*.test.js packages/mcp/dist/test/*.test.js packages/cli/dist/test/*.test.js",
+    "test:only": "node --test packages/core/dist/test/*.test.js packages/mcp/dist/test/*.test.js packages/cli/dist/test/*.test.js",
+    "handoff": "node packages/cli/dist/src/bin.js",
+    "skills": "npm run build && node packages/integrations/claude-code/scripts/write-skills.mjs",
+    "release:check": "npm run build && npm run test:only && node packages/integrations/claude-code/scripts/write-skills.mjs --check && for f in examples/*/HANDOFF.md; do node packages/cli/dist/src/bin.js validate \"$f\" --strict || exit 1; done && npm pack --dry-run --workspaces > /dev/null"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "typescript": "^5.7.2"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Ryujin-Labs/agents-handoff.git"
+  }
+}

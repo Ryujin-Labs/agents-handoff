@@ -1,0 +1,55 @@
+name: Release
+
+# Publishes all four packages when a version tag is pushed, e.g. `git tag v0.1.0 && git
+# push origin v0.1.0`. Requires an `NPM_TOKEN` repository secret with publish rights.
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: read
+  id-token: write # npm provenance
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.x'
+          registry-url: 'https://registry.npmjs.org'
+          cache: npm
+      # The git collectors run real `git` against real temporary repositories, so the
+      # runner needs an identity for the fixture commits.
+      - name: Configure git for fixtures
+        run: |
+          git config --global user.email "ci@example.com"
+          git config --global user.name "CI"
+          git config --global init.defaultBranch main
+      - run: npm ci
+      - run: npm run build
+      - run: npm run test:only
+      - name: Tag matches package versions
+        run: |
+          tag="${GITHUB_REF_NAME#v}"
+          for ws in packages/core packages/mcp packages/cli packages/integrations/claude-code; do
+            version=$(node -p "require('./$ws/package.json').version")
+            [ "$version" = "$tag" ] || { echo "$ws is $version, tag is $tag"; exit 1; }
+          done
+      # Dependencies first: the CLI and the MCP server depend on core, the CLI on the plugin.
+      # A version already on the registry is skipped rather than failing the run, so a
+      # release published by hand can still be tagged.
+      - name: Publish
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          for ws in packages/core packages/integrations/claude-code packages/mcp packages/cli; do
+            name=$(node -p "require('./$ws/package.json').name")
+            version=$(node -p "require('./$ws/package.json').version")
+            if npm view "$name@$version" version >/dev/null 2>&1; then
+              echo "$name@$version is already published; skipping"
+              continue
+            fi
+            npm publish --workspace "$ws" --provenance --access public
+          done

@@ -1,0 +1,47 @@
+{
+  "name": "agents-handoff-mcp",
+  "version": "0.1.0",
+  "description": "MCP server for Agents Handoff: lets any coding agent read change context and write a HANDOFF.md without a terminal.",
+  "license": "MIT",
+  "author": "Emir Furkan Bilici",
+  "homepage": "https://github.com/Ryujin-Labs/agents-handoff/tree/main/packages/mcp#readme",
+  "bugs": {
+    "url": "https://github.com/Ryujin-Labs/agents-handoff/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Ryujin-Labs/agents-handoff.git",
+    "directory": "packages/mcp"
+  },
+  "type": "module",
+  "main": "./dist/src/index.js",
+  "types": "./dist/src/index.d.ts",
+  "bin": {
+    "agents-handoff-mcp": "./dist/src/bin.js"
+  },
+  "files": [
+    "dist/src",
+    "src",
+    "README.md"
+  ],
+  "engines": {
+    "node": ">=20.10.0"
+  },
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "handoff",
+    "agents",
+    "claude"
+  ],
+  "scripts": {
+    "build": "tsc -b",
+    "test": "node --test dist/test",
+    "prepack": "tsc -b"
+  },
+  "dependencies": {
+    "agents-handoff-core": "^0.1.0",
+    "@modelcontextprotocol/server": "^2.0.0",
+    "zod": "^4.0.0"
+  }
+}

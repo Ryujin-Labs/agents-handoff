@@ -1,0 +1,27 @@
+{
+  "$schema": "https://code.claude.com/schemas/marketplace.json",
+  "name": "agents-handoff",
+  "owner": {
+    "name": "Ryujin Labs"
+  },
+  "description": "Structured software-change handoffs between developers and their coding agents.",
+  "plugins": [
+    {
+      "name": "agents-handoff",
+      "source": "./packages/integrations/claude-code",
+      "description": "Write and receive HANDOFF.md software-change handoffs: /handoff and /handoff-receive, plus the handoff MCP tools.",
+      "version": "0.1.0",
+      "license": "MIT",
+      "category": "collaboration",
+      "keywords": [
+        "handoff",
+        "agents",
+        "api",
+        "breaking-changes",
+        "mcp"
+      ],
+      "homepage": "https://github.com/Ryujin-Labs/agents-handoff",
+      "repository": "https://github.com/Ryujin-Labs/agents-handoff"
+    }
+  ]
+}

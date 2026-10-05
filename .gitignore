@@ -1,0 +1,11 @@
+node_modules/
+dist/
+*.tsbuildinfo
+.DS_Store
+*.log
+.env
+.env.local
+
+# Output from running the handoff tools on this repository itself
+/.handoff/
+/handoff.config.json

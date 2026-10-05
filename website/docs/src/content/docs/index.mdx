@@ -1,0 +1,62 @@
+---
+title: Introduction
+description: Agents Handoff is an open format and a local-first toolkit for handing a finished change to the next team’s coding agent.
+editUrl: https://github.com/Ryujin-Labs/agents-handoff/edit/main/website/docs/src/content/docs/index.mdx
+---
+
+import { Card, CardGrid, LinkCard } from '@astrojs/starlight/components';
+
+**Git tells you what code changed. Nothing tells the next developer what that change means for them.**
+
+Agents Handoff closes that gap. Your coding agent writes a short, structured `HANDOFF.md`
+about a change you just finished. Your teammate’s agent reads it in *their* repository and
+knows exactly what to change — and what not to build.
+
+```
+finish a change
+  → "write a handoff for the mobile team"
+  → .handoff/<id>/HANDOFF.md, which you review
+  → send it the way your team already talks
+  → their agent reads it, checks its own code, and plans the work
+```
+
+## What is in the box
+
+<CardGrid>
+  <Card title="An open format" icon="document">
+    `HANDOFF.md` v1: YAML frontmatter as the machine contract, and a fixed set of English
+    sections for people and agents. Specified, versioned, and readable without any tool.
+  </Card>
+  <Card title="An MCP server" icon="puzzle">
+    Ten tools and two prompts over stdio. Any MCP client gets the deterministic brief, a
+    validated writer, delivery, and a receiver that narrows actions to its own repository.
+  </Card>
+  <Card title="Plugins for Claude Code and Codex" icon="rocket">
+    One install brings two skills — write a handoff, receive one — and the MCP tools. Ask in
+    plain words: *“write a handoff for the mobile team”*.
+  </Card>
+  <Card title="A CLI" icon="laptop">
+    The `handoff` command for humans and scripts: interactive in a terminal, never when an
+    agent drives it, with JSON output and exit codes for CI.
+  </Card>
+</CardGrid>
+
+## How it thinks
+
+- **The tool collects the facts, the agent does the reasoning.** Routes, auth guards, types,
+  migrations and environment variables are gathered from git deterministically. The core
+  never calls a model. What the change *means* to another team is written by the agent that
+  built it with you.
+- **Local-first.** Writing, validating and receiving a handoff never touch the network.
+  Nothing leaves your machine unless you choose a channel that sends it.
+- **You decide.** The agent shows you what it wrote, asks before it delivers anything, and
+  asks before it replaces a handoff that already exists. It never commits.
+
+## Where to go next
+
+<CardGrid>
+  <LinkCard title="Quick start" description="Install it where you already work, and write your first handoff." href="/getting-started/" />
+  <LinkCard title="How it works" description="The loop from a finished change to the other team’s agent." href="/guides/the-loop/" />
+  <LinkCard title="Writing good handoffs" description="What a handoff is for, and what to leave out." href="/guides/writing-good-handoffs/" />
+  <LinkCard title="The specification" description="Every field and section of HANDOFF.md v1." href="/reference/spec/" />
+</CardGrid>

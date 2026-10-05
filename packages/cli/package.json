@@ -1,0 +1,50 @@
+{
+  "name": "agents-handoff",
+  "version": "0.1.0",
+  "description": "Agents Handoff: create, validate, inspect and receive HANDOFF.md software-change handoffs from the command line.",
+  "license": "MIT",
+  "author": "Emir Furkan Bilici",
+  "homepage": "https://github.com/Ryujin-Labs/agents-handoff/tree/main/packages/cli#readme",
+  "bugs": {
+    "url": "https://github.com/Ryujin-Labs/agents-handoff/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Ryujin-Labs/agents-handoff.git",
+    "directory": "packages/cli"
+  },
+  "type": "module",
+  "main": "./dist/src/index.js",
+  "types": "./dist/src/index.d.ts",
+  "bin": {
+    "handoff": "./dist/src/bin.js",
+    "agents-handoff": "./dist/src/bin.js"
+  },
+  "files": [
+    "dist/src",
+    "src",
+    "README.md"
+  ],
+  "engines": {
+    "node": ">=20.10.0"
+  },
+  "scripts": {
+    "build": "tsc -b",
+    "test": "node --test dist/test",
+    "prepack": "tsc -b"
+  },
+  "dependencies": {
+    "agents-handoff-core": "^0.1.0",
+    "agents-handoff-claude-code": "^0.1.0"
+  },
+  "keywords": [
+    "handoff",
+    "agents",
+    "ai",
+    "coding-agent",
+    "claude-code",
+    "developer-tools",
+    "markdown",
+    "protocol"
+  ]
+}

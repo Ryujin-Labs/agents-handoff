@@ -1,0 +1,157 @@
+---
+import { Code } from 'astro:components';
+
+/*
+ * The same commands as the README's quick start. If one changes there, change it here.
+ */
+const tabs = [
+  {
+    id: 'claude-code',
+    label: 'Claude Code',
+    lang: 'sh',
+    code: '/plugin marketplace add Ryujin-Labs/agents-handoff\n/plugin install agents-handoff@agents-handoff',
+    note: 'Brings the /agents-handoff:handoff and /agents-handoff:handoff-receive skills and the MCP tools in one install.',
+  },
+  {
+    id: 'codex',
+    label: 'Codex',
+    lang: 'sh',
+    code: 'codex plugin marketplace add Ryujin-Labs/agents-handoff\ncodex plugin add agents-handoff@agents-handoff',
+    note: 'The same two skills and the same MCP tools, packaged for Codex.',
+  },
+  {
+    id: 'mcp',
+    label: 'Any MCP client',
+    lang: 'json',
+    code: '{\n  "mcpServers": {\n    "agents-handoff": { "command": "npx", "args": ["-y", "agents-handoff-mcp"] }\n  }\n}',
+    note: 'Claude Desktop, Cursor and other clients that use this shape. Nothing is installed globally: the client fetches the server on first use.',
+  },
+  {
+    id: 'cli',
+    label: 'CLI',
+    lang: 'sh',
+    code: 'npm i -g agents-handoff\nhandoff init     # set up this repository\nhandoff          # an interactive menu',
+    note: 'For humans and scripts. Interactive in a terminal, never when an agent drives it.',
+  },
+] as const;
+
+const themes = { light: 'github-light', dark: 'github-dark' } as const;
+---
+
+<div class="install" data-tabs>
+  <div class="tablist" role="tablist" aria-label="Where you use it">
+    {
+      tabs.map((tab, index) => (
+        <button
+          type="button"
+          role="tab"
+          id={`tab-${tab.id}`}
+          aria-controls={`panel-${tab.id}`}
+          aria-selected={index === 0 ? 'true' : 'false'}
+          tabindex={index === 0 ? 0 : -1}
+        >
+          {tab.label}
+        </button>
+      ))
+    }
+  </div>
+  {
+    tabs.map((tab, index) => (
+      <div role="tabpanel" id={`panel-${tab.id}`} aria-labelledby={`tab-${tab.id}`} hidden={index !== 0}>
+        <Code code={tab.code} lang={tab.lang} themes={themes} />
+        <p class="note">{tab.note}</p>
+      </div>
+    ))
+  }
+  <p class="then">
+    Then, in a repository where you just finished a change, ask your agent:{' '}
+    <q>write a handoff for the mobile team</q>
+  </p>
+</div>
+
+<script>
+  for (const root of document.querySelectorAll<HTMLElement>('[data-tabs]')) {
+    const tabs = [...root.querySelectorAll<HTMLButtonElement>('[role="tab"]')];
+    const select = (next: HTMLButtonElement) => {
+      for (const tab of tabs) {
+        const selected = tab === next;
+        tab.setAttribute('aria-selected', String(selected));
+        tab.tabIndex = selected ? 0 : -1;
+        const panel = document.getElementById(tab.getAttribute('aria-controls') ?? '');
+        if (panel) panel.hidden = !selected;
+      }
+    };
+    tabs.forEach((tab, index) => {
+      tab.addEventListener('click', () => select(tab));
+      tab.addEventListener('keydown', (event) => {
+        const step = event.key === 'ArrowRight' ? 1 : event.key === 'ArrowLeft' ? -1 : 0;
+        if (!step) return;
+        const next = tabs[(index + step + tabs.length) % tabs.length];
+        if (next) {
+          select(next);
+          next.focus();
+        }
+      });
+    });
+  }
+</script>
+
+<style>
+  .install {
+    background: var(--bg-elevated);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 8px 20px 22px;
+    box-shadow: var(--shadow);
+  }
+
+  .tablist {
+    display: flex;
+    gap: 4px;
+    overflow-x: auto;
+    margin: 0 -12px 16px;
+    padding: 0 12px;
+    border-bottom: 1px solid var(--border);
+    scrollbar-width: none;
+  }
+
+  [role='tab'] {
+    flex: none;
+    padding: 14px 12px 12px;
+    background: none;
+    border: 0;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -1px;
+    color: var(--fg-muted);
+    font: 550 15px/1 var(--font-sans);
+    cursor: pointer;
+  }
+
+  [role='tab']:hover {
+    color: var(--fg);
+  }
+
+  [role='tab'][aria-selected='true'] {
+    color: var(--fg);
+    border-bottom-color: var(--accent);
+  }
+
+  .note {
+    margin-top: 12px;
+    color: var(--fg-muted);
+    font-size: 15px;
+  }
+
+  .then {
+    margin-top: 18px;
+    padding-top: 16px;
+    border-top: 1px dashed var(--border);
+    font-size: 15px;
+    color: var(--fg-muted);
+  }
+
+  q {
+    color: var(--fg);
+    font-weight: 550;
+  }
+</style>

@@ -1,0 +1,20 @@
+{
+  "name": "agents-handoff",
+  "interface": {
+    "displayName": "Agents Handoff"
+  },
+  "plugins": [
+    {
+      "name": "agents-handoff",
+      "source": {
+        "source": "local",
+        "path": "./packages/integrations/codex"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Developer Tools"
+    }
+  ]
+}

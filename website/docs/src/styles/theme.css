@@ -1,0 +1,20 @@
+/*
+ * The landing page's accent, in Starlight's variables. Starlight's dark theme is :root and
+ * its light theme is [data-theme='light'].
+ */
+:root {
+  --sl-color-accent-low: #0d2a27;
+  --sl-color-accent: #2dd4bf;
+  --sl-color-accent-high: #ccfbf1;
+}
+
+:root[data-theme='light'] {
+  --sl-color-accent-low: #d5f3ee;
+  --sl-color-accent: #0f766e;
+  --sl-color-accent-high: #134e4a;
+}
+
+/* Generated pages carry long tables (CLI flags, MCP tools); let them breathe. */
+.sl-markdown-content table code {
+  white-space: nowrap;
+}

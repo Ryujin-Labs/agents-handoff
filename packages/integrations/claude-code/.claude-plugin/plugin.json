@@ -1,0 +1,19 @@
+{
+  "name": "agents-handoff",
+  "version": "0.1.0",
+  "description": "Write and receive HANDOFF.md software-change handoffs without leaving Claude Code: the /handoff and /handoff-receive skills, plus the handoff MCP tools.",
+  "author": {
+    "name": "Emir Furkan Bilici"
+  },
+  "homepage": "https://github.com/Ryujin-Labs/agents-handoff",
+  "repository": "https://github.com/Ryujin-Labs/agents-handoff",
+  "license": "MIT",
+  "keywords": [
+    "handoff",
+    "agents",
+    "collaboration",
+    "api",
+    "breaking-changes",
+    "mcp"
+  ]
+}

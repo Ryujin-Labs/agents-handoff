@@ -1,0 +1,132 @@
+---
+import { DOCS_URL, REPO_URL } from '../../../site.config.mjs';
+
+const columns = [
+  {
+    title: 'Learn',
+    links: [
+      { label: 'Quick start', href: `${DOCS_URL}/getting-started/` },
+      { label: 'Writing good handoffs', href: `${DOCS_URL}/guides/writing-good-handoffs/` },
+      { label: 'HANDOFF.md specification', href: `${DOCS_URL}/reference/spec/` },
+    ],
+  },
+  {
+    title: 'Use it with',
+    links: [
+      { label: 'Claude Code', href: `${DOCS_URL}/integrations/claude-code/` },
+      { label: 'Codex', href: `${DOCS_URL}/integrations/codex/` },
+      { label: 'Any MCP client', href: `${DOCS_URL}/integrations/mcp/` },
+      { label: 'The CLI', href: `${DOCS_URL}/integrations/cli/` },
+    ],
+  },
+  {
+    title: 'Project',
+    links: [
+      { label: 'GitHub', href: REPO_URL },
+      { label: 'Changelog', href: `${DOCS_URL}/project/changelog/` },
+      { label: 'Security', href: `${DOCS_URL}/reference/security/` },
+      { label: 'Contributing', href: `${DOCS_URL}/project/contributing/` },
+    ],
+  },
+];
+---
+
+<footer class="footer">
+  <div class="container grid">
+    <div class="about">
+      <a class="brand" href="/">
+        <img src="/favicon.svg" alt="" width="24" height="24" />
+        <span>Agents Handoff</span>
+      </a>
+      <p>An open format and a local-first toolkit for handing a finished change to the next team's coding agent.</p>
+      <p class="license">MIT licensed. No telemetry, no account, nothing to sign up for.</p>
+      <p class="license">A <a href="https://ryujinlabs.com">Ryujin Labs</a> project.</p>
+    </div>
+    {
+      columns.map((column) => (
+        <nav aria-label={column.title}>
+          <h2>{column.title}</h2>
+          <ul>
+            {column.links.map((link) => (
+              <li>
+                <a href={link.href}>{link.label}</a>
+              </li>
+            ))}
+          </ul>
+        </nav>
+      ))
+    }
+  </div>
+</footer>
+
+<style>
+  .footer {
+    border-top: 1px solid var(--border);
+    padding: 64px 0 72px;
+    background: var(--bg-sunken);
+  }
+
+  .grid {
+    display: grid;
+    grid-template-columns: 2fr repeat(3, 1fr);
+    gap: 40px;
+  }
+
+  .brand {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    color: var(--fg);
+    font-weight: 650;
+  }
+
+  .brand:hover {
+    text-decoration: none;
+  }
+
+  .about p {
+    margin-top: 14px;
+    max-width: 38ch;
+    color: var(--fg-muted);
+    font-size: 15px;
+  }
+
+  .about .license {
+    color: var(--fg-faint);
+    font-size: 14px;
+  }
+
+  h2 {
+    font: 600 13px/1.4 var(--font-mono);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--fg-faint);
+    margin-bottom: 14px;
+  }
+
+  ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    gap: 10px;
+  }
+
+  ul a {
+    color: var(--fg-muted);
+    font-size: 15px;
+  }
+
+  ul a:hover {
+    color: var(--fg);
+  }
+
+  @media (max-width: 820px) {
+    .grid {
+      grid-template-columns: 1fr 1fr;
+    }
+    .about {
+      grid-column: 1 / -1;
+    }
+  }
+</style>
