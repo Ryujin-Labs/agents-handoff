@@ -2,7 +2,7 @@
  * Agents Handoff core.
  *
  * Everything here is agent-independent and free of model calls: schema, Markdown format,
- * git inspection, context collection, validation, storage and channels. Integrations
+ * git inspection, context collection, validation, storage and Markdown export. Integrations
  * (Claude Code today, others later) and the CLI are thin layers on top of this package.
  */
 
@@ -42,15 +42,6 @@ export {
 } from './config/index.ts';
 export type { HandoffConfig, ContextConfig, LoadedConfig, GitignoreResult, AskPolicy } from './config/index.ts';
 export { ASK_POLICIES } from './config/index.ts';
-export {
-  expandEnv,
-  hasUnresolvedEnv,
-  resolveChannelSettings,
-  literalSecrets,
-  routesFor,
-  needsSettings,
-} from './config/channels.ts';
-export type { ChannelSettings, ChannelSettingsMap, RouteMap } from './config/channels.ts';
 
 export { Git, repoHost, repoSlug, parseNumstatPath } from './git/index.ts';
 export type { Commit, ChangedFile, FileStatus, Revision, RepoInfo } from './git/index.ts';
@@ -111,32 +102,8 @@ export type {
 export { analyzeReceived, renderReceiveBrief, extractTargetActions } from './receive/index.ts';
 export type { ReceiveAnalysis, ReceiveOptions } from './receive/index.ts';
 
-export {
-  BUILTIN_CHANNELS,
-  findChannel,
-  filesystemChannel,
-  clipboardChannel,
-  stdoutChannel,
-  slackChannel,
-  discordChannel,
-  trelloChannel,
-  githubChannel,
-  whatsappChannel,
-  emailChannel,
-  chatSummary,
-  chatOpener,
-  repoLink,
-  shareLink,
-} from './channels/index.ts';
-export type { HandoffChannel, SendContext, SendResult, ChannelKind } from './channels/types.ts';
-export {
-  configProblems,
-  deliveryOptions,
-  formatDeliveryOptions,
-  settingsFor,
-  channelWithSettings,
-} from './channels/routing.ts';
-export type { DeliveryOption } from './channels/routing.ts';
+export { exportHandoff, ExportHandoffError } from './export/index.ts';
+export type { ExportHandoffOptions, ExportHandoffResult } from './export/index.ts';
 
 export { normalizeTarget, parseTargets, SUGGESTED_TARGETS } from './targets.ts';
 export { findSecrets, mask } from './redact.ts';
@@ -146,4 +113,3 @@ export { slugify, buildHandoffId, uniqueId, datePrefix } from './util/slug.ts';
 export { countWords, normalizeHeading, tidyMarkdown, markdownTable, truncate, unique } from './util/text.ts';
 export { packageRootOf, findUp, writeTextFile, readTextIfExists, readJsonIfExists } from './util/fs.ts';
 export { which, clearWhichCache } from './util/which.ts';
-export { openExternal, copyFileToClipboard, revealFile, canOpen, canCopyFile, hasUrlHandler } from './util/desktop.ts';

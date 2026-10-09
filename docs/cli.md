@@ -18,7 +18,7 @@ On a terminal, a command given nothing to work with asks instead of failing:
 | `handoff` | a menu of what you can do here |
 | `handoff create` | walks scope, targets and title |
 | `handoff init` | walks project setup |
-| `handoff send` | pick a handoff, pick a channel |
+| `handoff export` | export a selected handoff as a complete Markdown file |
 | `handoff receive` | offers handoff files it finds nearby |
 
 Prompting is enabled only when **both** stdin and stdout are a TTY. A pipe, a redirect, a
@@ -118,51 +118,35 @@ means here — `Required Actions` first, narrowed to your target.
 A handoff that carries a credential-shaped string is read but not stored, so it cannot end
 up committed here; the output names what matched.
 
-## `handoff send <id>`
+## `handoff export <file|id>`
+
+Exports a complete, validated Markdown file from a stored id, an unambiguous partial id,
+or a local file path. The exported bytes match the source document exactly.
+
+```bash
+handoff export 2026-08-28-auth-refresh-v2
+handoff export ./HANDOFF.md --out ./exports/auth-refresh.md
+handoff export 2026-08-28-auth-refresh-v2 --json
+```
 
 | Flag | |
 |---|---|
-| `-c, --channel <id>` | Defaults to the route configured for this handoff's target |
-| `--to <where>` | A path, a phone number, an address, a Trello board email |
-| `--link <mode>` | What a message carries: `repo`, `gist` or `none` |
-| `--list` | Show the routes for this handoff, and any configuration problems, then stop. Without an id, what the project has set up |
-| `--no-open` | Print the link instead of opening an app |
-| `--force` | Send despite validation failures, a scaffold, a credential match or a draft status |
+| `--out <path>` | Local Markdown file or existing directory; defaults to `.handoff/exports/<id>.md` |
+| `--json` | Return `id`, `path`, `source_path`, the complete `markdown`, and `unchanged` |
 
-| Channel | Kind | |
-|---|---|---|
-| `file` · `clipboard` · `stdout` | local | Nothing leaves the machine. `file` writes to `.handoff/outbox/` unless `--to` names a place, and never replaces a file that is not a copy of the same handoff |
-| `whatsapp` | compose | Opens a short actionable intro; you attach the file if needed, pick the chats and press send |
-| `email` | compose | Opens a draft with the summary and required actions; you attach the file if needed, pick the recipients and press send |
-| `slack` | push | Posts the summary and required actions to a webhook |
-| `discord` | push | Posts the summary with the handoff attached |
-| `trello` | push | Creates a card from a webhook, or opens a draft to the board's email address |
-| `github` | push | Uploads a secret gist — readable by anyone with the link |
-
-A scaffold straight from `handoff create` is refused: it is the template the agent was
-meant to fill in. For a compose channel the result line reads `opened` (or `ready`, when
-`--no-open` printed the link instead), never `sent`, because nothing reaches anyone until
-you press send in the app. With `--link gist` the handoff is
-uploaded to a secret gist first, and the output says so. When the message carries a link,
-the line after it says who can read it. When no share link is available, a Markdown copy
-named after the handoff is exported to `.handoff/outbox/<handoff-id>.md`, which keeps itself
-out of git, and the result shows its full local path.
-
-Email fills a `mailto:` draft with one plain summary and required-actions block. `mailto:`
-cannot attach files automatically: manually attach the exported Markdown in your mail
-client, choose the recipients, then press send. WhatsApp opens a short actionable intro
-with the full share link when available. Otherwise, it reports the named Markdown export
-and its local path so you can attach the file manually in the chat. The tool sends no
-WhatsApp message. Clipboard paste does not guarantee an attachment in either client.
+The command reports the absolute local path to the exported Markdown. `--json` also
+includes its source path and full contents. Open that file in your editor or download it
+through your agent client’s file view. The full frontmatter and every section are retained,
+with no message formatting or summary truncation. Invalid documents, unfilled templates and credential matches are refused.
+Export leaves the source document’s status unchanged.
 
 ## `handoff config`
 
-Shows the resolved configuration, with its routes and any configuration problems — a route
-to a channel that does not exist or is not set up, an unset `${VAR}`, a webhook written into
-the file. `--json`, `--collectors`, `--channels` to inspect;
+Shows the resolved configuration for the project, targets, identity, language and local
+storage. `--json` and `--collectors` inspect it;
 `--set-project`, `--set-targets`, `--set-default-target`, `--set-identity`,
 `--set-language`, `--gitignore`, `--no-gitignore` to change. `--set-default-target` is who
-this project sends to; `--set-identity` is which consumer this repository is when it
+this project addresses; `--set-identity` is which consumer this repository is when it
 receives. `--set-language ""` resets to English.
 
 ## `handoff install claude-code`

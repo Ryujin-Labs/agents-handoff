@@ -7,16 +7,17 @@ import { configCommand } from '../commands/config.ts';
 import { listCommand, showCommand, validateCommand } from '../commands/inspect.ts';
 import { interactiveCreate } from './create.ts';
 import { interactiveInit } from './setup.ts';
-import { interactiveReceive, interactiveSend } from './transfer.ts';
+import { interactiveReceive } from './transfer.ts';
+import { interactiveExport } from './export.ts';
 import { pickHandoff } from './pick.ts';
 
-type Action = 'create' | 'receive' | 'list' | 'show' | 'validate' | 'send' | 'init' | 'config' | 'quit';
+type Action = 'create' | 'receive' | 'list' | 'show' | 'validate' | 'export' | 'init' | 'config' | 'quit';
 
 /**
  * The bare `handoff` command on a terminal.
  *
  * Ordered by what a developer is most likely to be here for, and filtered by what this
- * repository can currently do — offering "send a handoff" in a directory with none is a
+ * repository can currently do — offering an export in a directory with none is a
  * dead end dressed up as a choice.
  */
 export async function mainMenu(cwd: string): Promise<number> {
@@ -52,7 +53,7 @@ export async function mainMenu(cwd: string): Promise<number> {
     choices.push({ value: 'list', label: 'List handoffs', hint: `${outgoing + inbox} here` });
     choices.push({ value: 'show', label: 'Read one of mine' });
     choices.push({ value: 'validate', label: 'Check one against the schema' });
-    choices.push({ value: 'send', label: 'Send one' });
+    choices.push({ value: 'export', label: 'Export a Markdown file' });
   }
   choices.push({
     value: 'init',
@@ -69,8 +70,8 @@ export async function mainMenu(cwd: string): Promise<number> {
       return interactiveCreate(cwd);
     case 'receive':
       return interactiveReceive(cwd);
-    case 'send':
-      return interactiveSend(cwd);
+    case 'export':
+      return interactiveExport(cwd);
     case 'init':
       return interactiveInit(cwd);
     case 'list':

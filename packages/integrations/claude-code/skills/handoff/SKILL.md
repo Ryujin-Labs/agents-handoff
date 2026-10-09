@@ -1,6 +1,6 @@
 ---
 name: "handoff"
-description: "Write a HANDOFF.md about a software change the developer finished, for another team and their coding agent. Use when the developer asks to write, create or send a handoff, or to tell another team (mobile, web, frontend, backend, sdk, devops...) about a change; never on your own initiative."
+description: "Write and export a complete HANDOFF.md about a software change the developer finished, for another team and their coding agent. Use when the developer asks to write, create or export a handoff, or to document a change for another team (mobile, web, frontend, backend, sdk, devops...); never on your own initiative."
 argument-hint: "[target] [note]"
 allowed-tools: "Bash(handoff *) Bash(npx --yes ryujin-handoff *) Bash(git diff *) Bash(git log *) Read Grep Glob Write"
 ---
@@ -96,7 +96,7 @@ This writes `.handoff/<id>/HANDOFF.md` with the frontmatter already filled in fr
 
 Read that file, then rewrite it with the Write tool. **Keep the generated frontmatter as it is**, with three exceptions you set yourself: `status: ready`, `breaking:`, and a corrected `change_type:`.
 
-Every `<!-- TODO -->` must be gone. A document that still contains one is a scaffold, not a handoff — `handoff validate` rejects a `status: ready` document that has one, and `handoff send` refuses to deliver it.
+Every `<!-- TODO -->` must be gone. A document that still contains one is a scaffold, not a handoff — `handoff validate` rejects a `status: ready` document that has one, and `handoff export` refuses to export it.
 
 Write for a specific reader: a competent engineer in another codebase who was not in your conversation and has no context on your repo.
 
@@ -152,41 +152,20 @@ Tell the developer, briefly:
 - anything you were unsure about and decided by assumption
 - **the Required Actions, as you wrote them** — what the other team will actually do
 
-That report is the developer's review, so it goes before the delivery question, never after the send. The Required Actions are the part a mistake is expensive in; they should not have to open the file to see what they are about to send.
+The complete Markdown file is the result. Keep all sections, frontmatter, examples and instructions in that file; do not replace it with an opening message or a shortened summary. If the developer requests a separate copy, export the complete document and report the exported path.
 
-Then **get it delivered**. A handoff nobody sends is a file nobody reads, and "you can share this now" is not an instruction — it is the work left undone.
+When one change produced several handoffs — a different one for mobile and for web — report each complete file and the team it targets.
 
-Look up the routes this project has configured for the target, then **ask which to use with your question interface**, offering the configured routes as the choices — plus **"let me review it first"** for a developer who wants to read the whole document or change a line before anything leaves. After they have, deliver to the route they pick without asking the rest again. A list of options someone has to type back is worse than a list they can click. If nothing is configured, offer what works anyway and mention that routes can be set once so the answer is automatic next time.
+Finish with the file paths and the Required Actions. Do not ask for a delivery channel or recipient. Do not open another application, copy to the clipboard, create a hosted link, or send a message. The developer shares the Markdown file through their own workflow.
 
-When one change produced several handoffs — a different one for mobile and for web — deliver them together, each to its own target's route, rather than making the developer repeat themselves once per team.
+Do not commit anything.
 
-Delivering opens the chat or mail window with an opening line already written. What the recipient then gets depends on one choice, so offer it:
+Export the complete Markdown file and give the developer its path or a downloadable file.
 
-- **A link into the repository** — the handoff is already committed, so the message carries a URL to it. Readable by whoever can read the repository and nobody else, which for a private repository means the team and no one on the open web. Nothing is uploaded. It needs the handoff pushed first.
-- **A link to an uploaded copy** — a GitHub "secret" gist. Secret means unlisted, *not* private: anyone who comes by the URL can read it, with or without an account. Offer it for a handoff whose leaking would not matter, and say plainly who can read it.
-- **The file** — nothing is uploaded and nothing is linked; the document is revealed ready to drag in, and the message says the file is coming rather than claiming it is already there.
-
-Whichever you use, tell the developer **who can read what you just put in the message**. Never call a gist private.
-
-For chat apps, do not ask who to send it to. The app already knows their colleagues: it opens on a contact list with the message written, and the developer picks — one person, several, or a group — far faster than answering a question about phone numbers.
-
-Either way the last step is theirs: send. Say so, rather than implying it has gone.
-
-Do not commit anything. Do not deliver without being asked: it leaves the machine, and it is the developer's call, not yours.
-
-See how this project reaches the target, then put the routes to the developer with AskUserQuestion so they can pick rather than type — with "let me review it first" among the options — and deliver the one they pick yourself, rather than handing them a command to run.
-
-With the `handoff_*` MCP tools: `handoff_delivery_options`, then `handoff_deliver` once they have picked. Without them:
+With the `handoff_*` MCP tools, call `handoff_export` for the stored handoff. Without them:
 
 ```
-handoff send <id> --list
-handoff send <id> --channel <route>
+handoff export <id>
 ```
 
-For whatsapp, email and slack, `--link` decides what the message carries — offer it in the same question, with who can read each:
-
-- `--link repo` — a link to the handoff where it is committed. Readable by whoever can read the repository; nothing is uploaded. Needs the handoff pushed.
-- `--link gist` — uploads a secret gist. Unlisted, but readable by anyone who has the URL.
-- no link — the file is revealed for the developer to attach.
-
-Never run the send without being asked.
+Use `--out <path>` when a different output file or directory is needed. The export preserves the complete Markdown, including frontmatter and every section. This product only produces files; it does not choose recipients, open applications or send messages.

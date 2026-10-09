@@ -13,7 +13,8 @@ Then, in a repository where you just finished a change, ask Codex:
 > write a handoff for the mobile team
 
 - **handoff** — collects the change from git, reads the code behind it, and stores a
-  finished `HANDOFF.md`; then offers the delivery routes your project configured.
+  finished `HANDOFF.md`; validates it, exports the full Markdown, and reports its
+  local path.
 - **handoff-receive** — reads a handoff a teammate sent, narrowed to this repository, and
   plans the work.
 

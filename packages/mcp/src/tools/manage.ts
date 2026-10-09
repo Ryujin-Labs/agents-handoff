@@ -3,13 +3,10 @@ import { join } from 'node:path';
 import {
   analyzeReceived,
   blockingStorageErrors,
-  channelWithSettings,
-  configProblems,
   defaultConfig,
-  deliveryOptions,
   ensureGitignored,
+  exportHandoff,
   findSecrets,
-  formatDeliveryOptions,
   Git,
   handoffDirectory,
   HandoffStore,
@@ -56,10 +53,6 @@ function findStored(store: HandoffStore, id: string): StoredHandoff | ToolResult
 
 function isResult(value: StoredHandoff | ToolResult): value is ToolResult {
   return 'content' in value;
-}
-
-function textOf(result: ToolResult): string {
-  return result.content.map((part) => ('text' in part ? part.text : '')).join('\n');
 }
 
 /* ------------------------------------------------------------------ list */
@@ -110,7 +103,7 @@ export const readInput = z.object({
 
 export const READ_DESCRIPTION = `Read one stored handoff back in full, by id or by an unambiguous part of one.
 
-Use it to show a developer what was written, to check a handoff before delivering it, or to pick up work described in an earlier one.`;
+Use it to show a developer what was written, to check a handoff before exporting it, or to pick up work described in an earlier one.`;
 
 export function readTool(boundary: Boundary) {
   return async (input: z.infer<typeof readInput>): Promise<ToolResult> =>
@@ -237,255 +230,53 @@ export function receiveTool(boundary: Boundary) {
     });
 }
 
-/* --------------------------------------------------------------- deliver */
+/* ---------------------------------------------------------------- export */
 
-export const optionsInput = z.object({
+export const exportInput = z.object({
   project_dir: project,
-  id: z.string().optional().describe('A stored handoff, so routes match its targets.'),
-  targets: z.array(z.string()).optional().describe('Targets to look up routes for.'),
+  id: z.string().describe('Stored handoff id, or an unambiguous part of one.'),
+  output_path: z.string().optional().describe(
+    'Optional Markdown file or existing directory inside this project. Defaults to .handoff/exports/<id>.md.',
+  ),
 });
 
-export const OPTIONS_DESCRIPTION = `List the ways this handoff can be delivered, and which are actually configured.
+export const EXPORT_DESCRIPTION = `Export a finished stored handoff as a local Markdown file and return its complete contents.
 
-Call this before you tell the developer their handoff is ready. "You can share this now" is not an instruction; naming the route their project set up for this target is. Routes marked "routed" are what this project decided reaches this team.
+The exported file preserves the source document byte for byte, including its status. The result includes the absolute file path and full Markdown. An optional output_path must remain inside this project; existing unrelated files are never replaced.`;
 
-Channels marked "compose" open an app with the message ready and the developer presses send; "push" channels deliver directly and upload the handoff to a third party.`;
-
-export function optionsTool(boundary: Boundary) {
-  return async (input: z.infer<typeof optionsInput>): Promise<ToolResult> =>
+export function exportTool(boundary: Boundary) {
+  return async (input: z.infer<typeof exportInput>): Promise<ToolResult> =>
     guard(() => {
       const cwd = projectDir(boundary, input.project_dir);
-      const loaded = loadConfig(cwd);
-
-      let targets = input.targets ?? [];
-      if (targets.length === 0 && input.id) {
-        const found = findStored(storeFor(boundary, cwd), input.id);
-        if (isResult(found)) return found;
-        targets = found.handoff.frontmatter.targets;
+      const store = storeFor(boundary, cwd);
+      const found = findStored(store, input.id);
+      if (isResult(found)) return found;
+      assertWithinBoundary(boundary, found.path, 'The stored handoff');
+      if (!contains(realPath(store.directory), realPath(found.path))) {
+        throw new PathRefused('The stored handoff is outside the handoff directory. Nothing was exported.');
       }
-
-      const options = deliveryOptions(loaded.config, targets).filter((option) => option.id !== 'stdout');
-      const routed = options.filter((option) => option.routed);
-      const header = routed.length
-        ? `Configured for ${targets.join(', ') || 'this project'}: ${routed.map((o) => o.label ?? o.id).join(', ')}.`
-        : `No routes configured for ${targets.join(', ') || 'this project'}. Anything available below still works, and routes can be set once in handoff.config.json.`;
-      const problems = configProblems(loaded.config);
-      const warnings = problems.length
-        ? `\n\nConfiguration problems to mention to the developer:\n${problems.map((problem) => `- ${problem}`).join('\n')}`
-        : '';
-
-      return textResult(`${header}\n\n${formatDeliveryOptions(options)}${warnings}`, {
-        targets,
-        options,
-        config_problems: problems,
+      const exportDir = join(store.directory, 'exports');
+      assertWithinBoundary(boundary, exportDir, 'The export directory');
+      if (!contains(realPath(store.directory), realPath(exportDir))) {
+        throw new PathRefused('The export directory is outside the handoff directory. Nothing was exported.');
+      }
+      const outputPath = input.output_path ? insideProject(cwd, input.output_path) : undefined;
+      if (outputPath) assertWithinBoundary(boundary, outputPath, 'The output path');
+      const result = exportHandoff({
+        markdown: readFileSync(found.path, 'utf8'),
+        cwd,
+        exportDir,
+        sourcePath: found.path,
+        ...(outputPath ? { outputPath } : {}),
+      });
+      return textResult(result.markdown, {
+        id: result.id,
+        path: result.path,
+        source_path: found.path,
+        markdown: result.markdown,
+        content: result.markdown,
       });
     });
-}
-
-export const deliverInput = z.object({
-  project_dir: project,
-  id: z.string().optional().describe('One handoff to deliver.'),
-  ids: z
-    .array(z.string())
-    .optional()
-    .describe(
-      'Several handoffs at once. Each goes to the route configured for its own target, so one change split across teams is delivered in one call.',
-    ),
-  open: z
-    .boolean()
-    .default(true)
-    .describe('Open the chat or mail window, and show the file ready to attach.'),
-  link: z
-    .enum(['repo', 'gist', 'none'])
-    .optional()
-    .describe(
-      'What URL goes in the message, for whatsapp and email. "repo" links to the handoff where it is already committed — readable by whoever can read the repository and nobody else, and nothing is uploaded; it needs the handoff pushed. "gist" uploads a secret gist, which is unlisted but readable by ANYONE who comes by the URL. "none" puts no link in and the developer attaches the file. Say which you are using and who can read it; do not describe a gist as private.',
-    ),
-  channel: z
-    .string()
-    .optional()
-    .describe(
-      'Channel id from handoff_delivery_options. Omit to use the route configured for this handoff\'s target.',
-    ),
-  to: z
-    .string()
-    .optional()
-    .describe('Destination: a path for "file", a phone number for "whatsapp", an address for "email".'),
-});
-
-export const DELIVER_DESCRIPTION = `Deliver one or more stored handoffs.
-
-Pass \`ids\` to deliver several at once — one change often produces a handoff per team, and each goes to the route configured for its own target.
-
-Local channels (clipboard, file, text) upload nothing. Push channels (slack, discord, trello, github) send the handoff to a third party. Compose channels (whatsapp, email) prepare a draft and export the Markdown for manual attachment unless the message carries a share link. Email uses mailto and does not automatically attach a file. Report the exported_path and next_step to the developer; clipboard paste behavior depends on the client. The developer picks recipients and presses send.
-
-**Ask the developer before calling this**, using your question UI so they can pick rather than type. Delivery leaves the machine and is their decision. Call handoff_delivery_options first so the choices you offer are the ones this project actually configured.`;
-
-export function deliverTool(boundary: Boundary) {
-  return async (input: z.infer<typeof deliverInput>): Promise<ToolResult> =>
-    guard(async () => {
-      const cwd = projectDir(boundary, input.project_dir);
-      const wanted = [...(input.ids ?? []), ...(input.id ? [input.id] : [])];
-      if (wanted.length === 0) return errorResult('Pass id, or ids for several at once.');
-
-      const deliveries: Delivery[] = [];
-      for (const one of wanted) {
-        deliveries.push(...(await deliverOne(boundary, cwd, { ...input, id: one })));
-      }
-
-      const labelled = deliveries.length > 1;
-      const text = deliveries
-        .map((entry) => (labelled ? `${entry.id} → ${entry.channel}: ${entry.message}` : entry.message))
-        .join('\n\n');
-      // One delivery keeps its fields at the top level; several are listed, so none of
-      // them loses its link or its "who can read this" on the way to the model.
-      const first = deliveries[0];
-      const structured = deliveries.length === 1 && first ? { ...first, deliveries } : { deliveries };
-      return deliveries.every((entry) => entry.ok)
-        ? textResult(text, structured)
-        : errorResult(text, structured);
-    });
-}
-
-/** What happened to one handoff on one channel. */
-interface Delivery {
-  [key: string]: unknown;
-  id: string;
-  channel: string;
-  ok: boolean;
-  /** True only when something actually left the machine. A draft opened is not sent. */
-  sent: boolean;
-  message: string;
-  destination?: string | undefined;
-  url?: string | undefined;
-  share_url?: string | undefined;
-  share_visibility?: string | undefined;
-  /** Where the handoff was uploaded on the way — a secret gist — even when not sent. */
-  uploaded?: string | undefined;
-  next_step?: string | undefined;
-  exported_path?: string | undefined;
-}
-
-/** Never offered or reached here: stdout is this server's protocol stream. */
-const UNOFFERED = new Set(['stdout']);
-
-async function deliverOne(
-  boundary: Boundary,
-  cwd: string,
-  input: z.infer<typeof deliverInput> & { id: string },
-): Promise<Delivery[]> {
-  const refuse = (message: string, channel = input.channel ?? ''): Delivery[] => [
-    { id: input.id, channel, ok: false, sent: false, message },
-  ];
-
-  const found = findStored(storeFor(boundary, cwd), input.id);
-  if (isResult(found)) return refuse(textOf(found));
-
-  const markdown = readFileSync(found.path, 'utf8');
-  const secrets = findSecrets(markdown);
-  if (secrets.length > 0) {
-    return refuse(
-      `Refusing to deliver: this looks like it contains a credential (line ${secrets[0]?.line}, ${secrets[0]?.kind}).`,
-    );
-  }
-
-  // Hold delivery to the same bar the CLI does: a document that does not conform, or
-  // that is still the scaffold it started as, is not something to hand a teammate.
-  const validation = validateHandoffSource(markdown);
-  if (!validation.ok) {
-    return refuse(
-      `Refusing to deliver a handoff that does not conform to the v1 schema:\n${formatIssueList(validation.errors)}\n\nFix it with handoff_write (overwrite: true), then deliver.`,
-    );
-  }
-  const scaffold = validation.warnings.find((issue) => issue.code === 'unfilled-template');
-  if (scaffold) {
-    return refuse(
-      `Refusing to deliver a scaffold: ${scaffold.message} Write the finished document with handoff_write (overwrite: true), then deliver.`,
-    );
-  }
-
-  if (input.channel === 'text') {
-    return [{ id: found.id, channel: 'text', ok: true, sent: false, message: markdown }];
-  }
-
-  const loaded = loadConfig(cwd);
-  const options = deliveryOptions(loaded.config, found.handoff.frontmatter.targets);
-
-  // No channel named: every route this project configured for the handoff's targets, not
-  // just the first one found. A handoff for mobile and web goes to both teams' routes. A
-  // route to stdout stays in the list so that it is refused out loud, not dropped.
-  const routed = options.filter((option) => option.routed);
-  const channelIds = input.channel
-    ? [input.channel]
-    : routed.length > 0
-      ? routed.map((option) => option.id)
-      : ['clipboard'];
-
-  const deliveries: Delivery[] = [];
-  for (const channelId of channelIds) {
-    if (UNOFFERED.has(channelId)) {
-      deliveries.push(...refuse(
-        'Refusing to deliver to stdout: stdout is the MCP JSON-RPC protocol stream, not a delivery channel. Use "text" to return the handoff in tool output.',
-        channelId,
-      ));
-      continue;
-    }
-    const resolved = channelWithSettings(loaded.config, channelId);
-    if (!resolved) {
-      deliveries.push(...refuse(`Unknown channel "${channelId}". Call handoff_delivery_options to see what exists.`, channelId));
-      continue;
-    }
-    const { channel, settings } = resolved;
-    if (!channel.isAvailable(settings)) {
-      const option = options.find((entry) => entry.id === channelId);
-      deliveries.push(...refuse(`The "${channelId}" channel is not usable here: ${option?.blockedBy ?? 'unavailable'}.`, channelId));
-      continue;
-    }
-
-    // A copy to attach, or a file delivery with no `to`, goes in the project's outbox, never
-    // the system temp directory: this server writes only inside the project it was given.
-    const stagingDir = join(handoffDirectory(loaded), 'outbox');
-    assertWithinBoundary(boundary, stagingDir, 'The outbox');
-
-    // `to` is a path for the file channel, held to the same boundary as every read.
-    let destination = input.to;
-    if (channelId === 'file' && input.to) destination = insideProject(cwd, input.to);
-
-    const result = await channel.send({
-      markdown,
-      handoff: found.handoff,
-      sourcePath: found.path,
-      cwd,
-      settings,
-      open: input.open,
-      stagingDir,
-      ...(input.link ? { link: input.link } : {}),
-      ...(destination ? { destination } : {}),
-    });
-    // Who can read the link, and any upload it took, go in the words too: an agent that
-    // reads only the message must still be able to tell the developer.
-    const disclosure = [
-      result.uploaded ? `Uploaded to ${result.uploaded} on the way.` : '',
-      result.shareVisibility ? `The link is readable by ${result.shareVisibility}.` : '',
-    ]
-      .filter(Boolean)
-      .join(' ');
-    deliveries.push({
-      id: found.id,
-      channel: channelId,
-      ok: result.ok,
-      sent: result.ok && !result.composed && channel.kind !== 'local',
-      message: `${result.message || `Delivered to ${result.destination}.`}${disclosure ? ` ${disclosure}` : ''}`,
-      uploaded: result.uploaded,
-      destination: result.destination,
-      url: result.url,
-      share_url: result.shareUrl,
-      share_visibility: result.shareVisibility,
-      next_step: result.nextStep,
-      exported_path: result.exportedPath,
-    });
-  }
-  return deliveries;
 }
 
 /* ----------------------------------------------------------------- setup */
@@ -505,7 +296,7 @@ export const setupInput = z.object({
   overwrite: z
     .boolean()
     .default(false)
-    .describe('Replace an existing handoff.config.json. It holds routes and channels; only with the developer\'s say-so.'),
+    .describe('Replace an existing handoff.config.json. Only replace it when the developer asks.'),
 });
 
 export const SETUP_DESCRIPTION = `Create handoff.config.json and the .handoff directory.
@@ -524,7 +315,7 @@ export function setupTool(boundary: Boundary) {
       const existing = loadConfig(root);
       if (existing.exists && existing.path && !input.overwrite) {
         return errorResult(
-          `${existing.path} already exists, with its routes and channels. Nothing was changed. Pass overwrite: true only if the developer wants it replaced.`,
+          `${existing.path} already exists. Nothing was changed. Pass overwrite: true only if the developer wants it replaced.`,
           { path: existing.path, config: existing.config },
         );
       }

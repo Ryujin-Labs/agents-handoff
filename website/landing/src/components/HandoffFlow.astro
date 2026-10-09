@@ -1,12 +1,12 @@
 ---
 /*
- * The whole product in one picture: a request on the sending side, the document in the
+ * The whole product in one picture: a request in the source repository, the document in the
  * middle, a request on the receiving side. The lines are the real tool names and the
  * real steps, abbreviated.
  */
 ---
 
-<figure class="flow" aria-label="A backend agent writes a HANDOFF.md; a mobile agent receives it and plans the work.">
+<figure class="flow" aria-label="A backend agent writes and exports a HANDOFF.md; a mobile agent reads the file and plans the work.">
   <div class="panel">
     <div class="panel-head">
       <span class="repo">backend</span>
@@ -17,7 +17,9 @@
       <p><span class="ok">✓</span> <span class="tool">handoff_context</span> <span class="dim">14 files · 2 breaking</span></p>
       <p><span class="ok">✓</span> <span class="tool">handoff_source</span> <span class="dim">auth/refresh.ts</span></p>
       <p><span class="ok">✓</span> <span class="tool">handoff_write</span> <span class="dim">HANDOFF.md</span></p>
-      <p class="ask"><span class="q">?</span> Send it how? <span class="chips"><span>WhatsApp</span><span>Slack</span><span>Review first</span></span></p>
+      <p><span class="ok">✓</span> reviewed Required Actions</p>
+      <p><span class="ok">✓</span> <span class="tool">handoff_export</span> <span class="dim">exports/auth-refresh.md</span></p>
+      <p class="ask"><span class="q">→</span> Complete Markdown file exported</p>
     </div>
   </div>
 
@@ -149,26 +151,6 @@
 
   .ask {
     color: var(--fg);
-  }
-
-  .chips {
-    display: inline-flex;
-    flex-wrap: wrap;
-    gap: 4px;
-    margin-top: 6px;
-  }
-
-  .chips span {
-    padding: 1px 7px;
-    border: 1px solid var(--border-strong);
-    border-radius: 999px;
-    font-size: 11px;
-    color: var(--fg-muted);
-  }
-
-  .chips span:last-child {
-    border-color: var(--accent);
-    color: var(--accent-text);
   }
 
   .doc {

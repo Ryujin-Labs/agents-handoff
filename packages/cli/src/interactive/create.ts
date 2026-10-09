@@ -1,8 +1,6 @@
-import { join, relative } from 'node:path';
 import {
   collectChangeContext,
   Git,
-  handoffDirectory,
   loadConfig,
   scaffoldHandoff,
   truncate,
@@ -11,8 +9,7 @@ import type { ParsedArgs } from '../args.ts';
 import { confirm, select, text } from '../prompt/index.ts';
 import { err, out, style } from '../ui.ts';
 import { createCommand } from '../commands/create.ts';
-import { sendCommand } from '../commands/send.ts';
-import { pickChannel, pickTargets } from './pick.ts';
+import { pickTargets } from './pick.ts';
 import { describeScope, pickScope, type ScopeAnswer } from './scope.ts';
 
 /**
@@ -104,7 +101,7 @@ function toArgs(scope: ScopeAnswer, targets: string[], title: string): ParsedArg
   return { values, positionals: [] };
 }
 
-type NextStep = 'agent' | 'myself' | 'send' | 'validate';
+type NextStep = 'agent' | 'myself' | 'validate';
 
 /**
  * A draft is not the finish line.
@@ -121,7 +118,6 @@ async function offerNextStep(cwd: string): Promise<number> {
       { value: 'agent', label: 'let my agent write it', hint: 'the TODOs are for it, not you' },
       { value: 'myself', label: "I'll fill it in by hand" },
       { value: 'validate', label: 'check it against the schema' },
-      { value: 'send', label: 'send it somewhere' },
     ],
   });
 
@@ -152,17 +148,5 @@ async function offerNextStep(cwd: string): Promise<number> {
   const entry = await pickHandoff(cwd, 'outgoing', 'Which one?');
   if (!entry) return 0;
 
-  if (step === 'validate') {
-    return validateCommand({ values: {}, positionals: [entry.id] }, cwd);
-  }
-
-  const channel = await pickChannel(loadConfig(cwd).config, entry.handoff.frontmatter.targets);
-  const values: ParsedArgs['values'] = { channel };
-  if (channel === 'file') {
-    values['to'] = await text({
-      message: 'Write it where?',
-      default: relative(cwd, join(handoffDirectory(loadConfig(cwd)), 'outbox')),
-    });
-  }
-  return sendCommand({ values, positionals: [entry.id] }, cwd);
+  return validateCommand({ values: {}, positionals: [entry.id] }, cwd);
 }

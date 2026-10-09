@@ -25,7 +25,7 @@ const AUTHORING_MECHANICS = {
     'Call `handoff_write`. You supply only prose — the schema version, id, timestamp, branch, commit and revision range come from git, and the section headings are generated.\n\nThe document is validated before it is stored. If it does not conform, nothing is written and you get the errors back; fix them and call the tool again.',
   report: {
     after:
-      'Call `handoff_delivery_options` for the configured routes, after `handoff_write`. If you generated handoffs for multiple targets (e.g. frontend and backend, or mobile and web), state what was generated for each. Then ask which route to use — one question, with the link choice folded into its options and "let me review it first" among them — with your client\'s question tool if it has one, so the developer can pick rather than type. Call `handoff_deliver` with what they pick. Never deliver automatically or before they choose.',
+      'Call `handoff_export` after `handoff_write` to produce a local Markdown file and return its full contents. Report its path, targets, breaking status, and Required Actions. If you generated handoffs for several targets, identify each file and what it covers.',
   },
   check:
     'Ask with your client\'s question tool if it has one, your proposal as the first option; otherwise in one short message. If the tool returns before the developer has answered, stop there: end your turn with at most a line pointing at the question. Do not ask it again as text, and do not start work that depends on the answer.',
@@ -122,7 +122,7 @@ export function skillFiles(): SkillFile[] {
       name: 'handoff',
       contents: `${skillFrontmatter(
         'handoff',
-        'Write a HANDOFF.md describing a software change the developer just finished, for another team and their coding agent. Use when the developer asks to write, create or send a handoff, or to tell another team (mobile, web, frontend, backend, devops...) about a change.',
+        'Write a HANDOFF.md describing a software change the developer just finished, for another team and their coding agent. Use when the developer asks to write, create or export a handoff describing a change for another team (mobile, web, frontend, backend, devops...).',
       )}\n\n# Write a handoff\n\n${authoring}`,
     },
     {

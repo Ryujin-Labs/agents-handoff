@@ -154,7 +154,7 @@ write it; the author removes it by making the decision.
 A document containing the marker in any section is unfinished, and must say so with
 `status: draft`. A document with any other status that still contains the marker claims
 to be finished while it is not — that is the one content rule treated as an **error**,
-because delivering it hands a teammate a template instead of a handoff.
+because exporting it would give a teammate a template instead of a handoff.
 
 ---
 
@@ -198,8 +198,8 @@ the directory *is* the index, so it cannot drift.
 
 - No signing, encryption, or authenticity guarantees.
 - No transport. A handoff is a file; how it moves is out of scope.
-- No acknowledgement or completion protocol. `status` exists so v2 can add one without a
-  format break.
+- No acknowledgement or completion protocol. Legacy `delivered` and `acknowledged` values
+  remain valid for stored-document compatibility; file export never changes `status`.
 - No cross-handoff dependency graph.
 
 ---

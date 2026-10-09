@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import childProcess, { execFileSync } from 'node:child_process';
-import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { syncBuiltinESMExports } from 'node:module';
 import { tmpdir } from 'node:os';
 import { basename, join } from 'node:path';
@@ -233,85 +233,21 @@ describe('interactive init', () => {
   });
 });
 
-describe('interactive send', () => {
-  it('picks a handoff and a channel', async () => {
-    const repo = makeRepo();
-    // Routing selects by channel identity instead of relying on a platform-dependent
-    // list index. The old single DOWN selected email on macOS and opened real Mail.
-    writeFileSync(join(repo, 'handoff.config.json'), JSON.stringify({ routes: { default: ['file'] } }));
-    // A finished handoff: `send` refuses a scaffold, so one straight from `create` would
-    // test the refusal rather than the picker.
-    mkdirSync(join(repo, '.handoff', '2026-08-28-sendable'), { recursive: true });
-    writeFileSync(
-      join(repo, '.handoff', '2026-08-28-sendable', 'HANDOFF.md'),
-      [
-        '---',
-        'handoff_version: 1',
-        'id: 2026-08-28-sendable',
-        'created_at: 2026-08-28T10:00:00Z',
-        'status: ready',
-        'breaking: false',
-        'source:',
-        '  project: backend',
-        'targets: [mobile]',
-        'change_type: [api]',
-        '---',
-        '',
-        '# Sendable',
-        '',
-        '## Summary',
-        '',
-        'Search results are now paginated.',
-        '',
-        '## Why This Matters',
-        '',
-        'Clients that read the whole list get only the first page.',
-        '',
-        '## Changes',
-        '',
-        '`GET /search` returns `{ items, cursor }`.',
-        '',
-        '## Required Actions',
-        '',
-        '1. Follow `cursor` until it is null.',
-        '',
-        '## Verification',
-        '',
-        'Search for a term with more than one page of results.',
-        '',
-        '## Instructions for Receiving Agent',
-        '',
-        'Extend the existing search client.',
-        '',
-      ].join('\n'),
-    );
-
-    const result = await run(repo, ['send'], [
-      ENTER, // the only handoff
-      ENTER, // routed file channel
-      ENTER, // accept the default path
-    ]);
-    assert.equal(result.code, 0, result.output);
-    assert.match(result.output, /Which handoff do you want to send\?/);
-    assert.match(result.output, /Send it where\?/);
-    assert.match(result.output, /Write it where\?/);
-    const original = join(repo, '.handoff', '2026-08-28-sendable', 'HANDOFF.md');
-    const exported = join(repo, '.handoff', 'outbox', '2026-08-28-sendable.md');
-    assert.equal(readFileSync(exported, 'utf8'), readFileSync(original, 'utf8'));
-  });
-
-  it('does not prompt when only flags were given', async () => {
-    const repo = makeRepo();
-    const result = await run(repo, ['send', '--list'], []);
-    assert.equal(result.code, 0, result.output);
-    assert.ok(!result.output.includes('Which handoff do you want to send?'), result.output);
-  });
-
-  it('says so plainly when there is nothing to send', async () => {
+describe('file-only interactive interface', () => {
+  it('rejects send without prompting', async () => {
     const repo = makeRepo();
     const result = await run(repo, ['send'], []);
-    assert.equal(result.code, 0);
-    assert.match(result.output, /No handoffs here yet/);
+    assert.equal(result.code, 1);
+    assert.ok(!result.output.includes('Which handoff'));
+    assert.ok(!result.output.includes('Send it where'));
+    assert.deepEqual(desktopCalls, []);
+  });
+
+  it('requires an explicit reference for export without prompting', async () => {
+    const repo = makeRepo();
+    const result = await run(repo, ['export'], []);
+    assert.equal(result.code, 1);
+    assert.ok(!result.output.includes('Which handoff'));
   });
 });
 
@@ -396,6 +332,7 @@ describe('the bare command', () => {
     assert.equal(result.code, 0, result.output);
     assert.match(result.output, /What do you want to do\?/);
     assert.match(result.output, /Write a handoff/);
+    assert.doesNotMatch(result.output, /Send one|Send it where|email|clipboard/);
   });
 
   it('exits 130 on ctrl+c', async () => {

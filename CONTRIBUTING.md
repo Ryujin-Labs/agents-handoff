@@ -18,7 +18,7 @@ node packages/cli/dist/src/bin.js context --target mobile
 
 ```
 packages/core/                     schema, markdown, git, collectors, validation, storage,
-                                   channels, and the shared method in guidance/
+                                   Markdown export, and the shared method in guidance/
 packages/mcp/                      the MCP server
 packages/cli/                      the `handoff` binary
 packages/integrations/claude-code/ the plugin and the generated skills

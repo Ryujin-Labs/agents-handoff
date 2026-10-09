@@ -141,8 +141,8 @@ export class HandoffStore {
 
   /** Write a handoff, creating its directory. Returns the file path. */
   save(handoff: Handoff, direction: Direction = 'outgoing'): string {
-    // One file per handoff. A copy named after the id is made only when a delivery needs
-    // one to attach — a second copy stored here would drift from the first after an edit.
+    // One file per handoff. Named copies are made only on an explicit Markdown export,
+    // because a second stored copy would drift from the first after an edit.
     const path = this.pathFor(handoff.frontmatter.id, direction);
     writeTextFile(path, serializeHandoff(handoff));
     return path;

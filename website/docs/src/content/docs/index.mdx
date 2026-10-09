@@ -1,6 +1,6 @@
 ---
 title: Introduction
-description: Agents Handoff is an open format and a local-first toolkit for handing a finished change to the next team’s coding agent.
+description: Agents Handoff is an open Markdown format and a local toolkit for explaining a finished change to the next team’s coding agent.
 editUrl: https://github.com/Ryujin-Labs/agents-handoff/edit/main/website/docs/src/content/docs/index.mdx
 ---
 
@@ -16,7 +16,7 @@ knows exactly what to change — and what not to build.
 finish a change
   → "write a handoff for the mobile team"
   → .handoff/<id>/HANDOFF.md, which you review
-  → send it the way your team already talks
+  → export the complete Markdown file
   → their agent reads it, checks its own code, and plans the work
 ```
 
@@ -28,8 +28,8 @@ finish a change
     sections for people and agents. Specified, versioned, and readable without any tool.
   </Card>
   <Card title="An MCP server" icon="puzzle">
-    Ten tools and two prompts over stdio. Any MCP client gets the deterministic brief, a
-    validated writer, delivery, and a receiver that narrows actions to its own repository.
+    Tools and two prompts over stdio. Any MCP client gets the deterministic brief, a
+    validated writer, a Markdown exporter, and a receiver that narrows actions to its own repository.
   </Card>
   <Card title="Plugins for Claude Code and Codex" icon="rocket">
     One install brings two skills — write a handoff, receive one — and the MCP tools. Ask in
@@ -47,10 +47,22 @@ finish a change
   migrations and environment variables are gathered from git deterministically. The core
   never calls a model. What the change *means* to another team is written by the agent that
   built it with you.
-- **Local-first.** Writing, validating and receiving a handoff never touch the network.
-  Nothing leaves your machine unless you choose a channel that sends it.
-- **You decide.** The agent shows you what it wrote, asks before it delivers anything, and
-  asks before it replaces a handoff that already exists. It never commits.
+- **Local files.** Writing, validating, exporting and receiving a handoff happen on your
+  machine. The exported Markdown contains the complete handoff for people and agents.
+- **You decide.** Review the Required Actions, export the document, and give the file to the
+  other team. The receiving agent checks its own code and implements only when asked.
+
+## Export the handoff
+
+After reviewing a handoff, export its complete Markdown:
+
+```sh
+handoff export <file|id> --out ./HANDOFF.md
+```
+
+Without `--out`, the file is written to `.handoff/exports/<id>.md`. An MCP client can use
+`handoff_export` for the same operation. The result reports the exported file path and its
+source path. The other team can read the file directly or ask its agent to receive it.
 
 ## Where to go next
 
@@ -58,5 +70,6 @@ finish a change
   <LinkCard title="Quick start" description="Install it where you already work, and write your first handoff." href="/getting-started/" />
   <LinkCard title="How it works" description="The loop from a finished change to the other team’s agent." href="/guides/the-loop/" />
   <LinkCard title="Writing good handoffs" description="What a handoff is for, and what to leave out." href="/guides/writing-good-handoffs/" />
+  <LinkCard title="Export a Markdown file" description="Create the complete file for the receiving team." href="/guides/export/" />
   <LinkCard title="The specification" description="Every field and section of HANDOFF.md v1." href="/reference/spec/" />
 </CardGrid>

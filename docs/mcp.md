@@ -1,8 +1,8 @@
 # MCP server
 
 `ryujin-handoff-mcp` gives any MCP-speaking agent the whole handoff loop — collect, read,
-write, deliver, receive — without a terminal. It runs over stdio and is fetched on first use
-by `npx`, so nothing is installed globally.
+write, validate, export, receive — without a terminal. It runs over stdio and is fetched on
+first use by `npx`, so nothing is installed globally.
 
 ## Connecting
 
@@ -42,16 +42,17 @@ Every tool takes a `project_dir`. To stop the server working anywhere else, pass
 | `handoff_source` | Up to ten files from the project, as they stand (`mode: "current"`) or as a diff (`mode: "diff"`). How the agent confirms what the brief only suggests. |
 | `handoff_write` | Stores a finished handoff. The agent supplies the prose for each section; the id, timestamp, branch, commit and revision range come from git, and the headings are generated. Validated and scanned for credentials first — if it fails, nothing is written and the reasons come back. A taken id is not replaced unless `overwrite: true`; it comes back as a question for the developer: update that handoff, or keep both. |
 
-### Delivering
+### Exporting
 
 | Tool | What it does |
 |---|---|
-| `handoff_delivery_options` | Every channel, whether it is routed to the target, whether it works here and why not, and any configuration problems worth telling the developer about. |
-| `handoff_deliver` | Delivers one handoff (`id`) or several (`ids`), each to the route for its own target unless `channel` names one. `link` chooses what a message carries (`repo`, `gist` or `none`); `to` is a path, number or address. Refuses a handoff that does not conform, that is still a scaffold, or that contains a credential. |
+| `handoff_export` | Validates a stored handoff and exports the complete Markdown as a local file. Takes `project_dir`, `id`, and optional `output_path` (a Markdown file or existing directory inside the project). The output retains the source bytes and all sections. |
 
-The agent is told to ask the developer before delivering, every time. `text` returns the
-handoff in the tool result instead of sending it; `stdout` is never offered, because stdout
-is this server's protocol stream.
+The default export is `.handoff/exports/<id>.md`. The result includes `id`, `path`,
+`source_path` and the complete Markdown in `markdown`, `content` and `text`. Ask the agent
+to show the file it exported; clients with a file view can open or download it. Export
+preserves the source document’s status and refuses invalid documents, unfilled templates
+and credential matches.
 
 ### Receiving
 
@@ -82,9 +83,9 @@ skills are generated from. Most clients show them as slash commands; in Claude C
 ## Instructions
 
 The server sends a short statement of the loop on `initialize` — call `handoff_context`
-first, read the code, ask once if the intent is unclear, write, then offer the configured
-routes and deliver only on the developer's word. Clients that support server instructions
-put it in front of the model, so a plain sentence like *"write a handoff for mobile"* is
+first, read the code, ask once if the intent is unclear, write, validate, and export the
+complete Markdown with `handoff_export`. Clients that support server instructions put it
+in front of the model, so a plain sentence like *"write a handoff for mobile"* is
 handled the same way as the prompt.
 
 ## What a result contains
@@ -100,10 +101,8 @@ very differently to a model.
 
 ## Boundaries
 
-- Writing, reading, validating and receiving make no network calls. Only `handoff_deliver`
-  can, and only through the channel the developer picked.
-- Only `git` is executed, with fixed argument shapes — plus, when delivering, the platform's
-  opener, clipboard command, and `gh`.
+- Writing, reading, validating, exporting and receiving make no network calls.
+- Only `git` is executed, with fixed argument shapes.
 - Paths are resolved through symlinks and must sit inside the project (and `--root`). A
   handoff's `id` never chooses where a file is written. Files that exist to hold credentials
   are refused.
@@ -114,6 +113,6 @@ very differently to a model.
 again once it has finished, or install it (`npm i -g ryujin-handoff-mcp`) and use
 `agents-handoff-mcp` as the command.
 
-**The tools are there but the agent never offers a route.** Configure `routes` in
-`handoff.config.json`, or ask it to call `handoff_delivery_options`; it lists what works
-even with nothing configured.
+**You need the Markdown file.** Ask the agent to call `handoff_export` and show the
+returned local path. A file view can expose it for opening or downloading; otherwise open
+that path with your editor.

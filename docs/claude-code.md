@@ -78,10 +78,11 @@ What the agent does:
    filling in every `<!-- TODO -->`.
 6. Cuts it down and validates it.
 7. Tells you the path, the target, whether it is breaking and why, and anything it decided
-   by assumption — then offers the delivery routes your project configured, and delivers
-   only the one you pick.
+   by assumption. Exports the complete Markdown with `handoff_export` or `handoff export`
+   and reports its local path.
 
-It never commits, and it never delivers without being asked.
+The result is a local Markdown document. You can open or download the exported file from
+your client and give it to the receiving agent.
 
 ## Receiving a handoff
 

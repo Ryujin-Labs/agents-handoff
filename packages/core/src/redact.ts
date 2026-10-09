@@ -24,7 +24,7 @@ interface SecretPattern {
  * Whether a bare value looks like a credential rather than a word.
  *
  * Unquoted assignments are everywhere in handoffs — `AUTH_TOKEN_STORAGE=keychain`,
- * `ACCESS_TOKEN_TTL=15minutes` — and a false positive blocks a delivery outright, so a bare
+ * `ACCESS_TOKEN_TTL=15minutes` — and a false positive blocks an export outright, so a bare
  * value has to look generated: several character classes, and some length.
  */
 function looksGenerated(value: string): boolean {

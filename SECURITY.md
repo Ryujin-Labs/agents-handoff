@@ -19,20 +19,20 @@ Agents Handoff handles two kinds of untrusted input, and both are in scope:
   instructions unrelated to the change is a vulnerability.
 - **Arguments from a model.** The MCP server's tool arguments are chosen by an agent, which
   may itself be reading attacker-controlled text. Anything that escapes the project
-  directory or `--root`, reads a credentials file, or reaches the network without a
-  delivery the developer asked for is a vulnerability.
+  directory or `--root`, reads a credentials file, or reaches the network is a
+  vulnerability.
 
 A credential that slips past the scanner in `redact.ts` is worth reporting too, though the
 scanner is a safety net for accidents rather than a security boundary.
 
 ## What the project promises
 
-- Writing, reading, validating and receiving a handoff make no network calls.
-- The MCP server reads and writes only inside the project it is given — the copy it makes
-  for attaching to a message included — with symlinks
-  resolved before the check, and refuses files that exist to hold credentials.
+- Writing, reading, validating, exporting and receiving a handoff make no network calls.
+- The MCP server reads and writes only inside the project it is given, including Markdown
+  exports, with symlinks resolved before the check. It refuses files that exist to hold
+  credentials.
 - A handoff's `id` never chooses where a file is written.
-- Nothing is delivered without the developer choosing a channel.
+- Export produces a complete local Markdown file and leaves the source status unchanged.
 
 ## Supported versions
 

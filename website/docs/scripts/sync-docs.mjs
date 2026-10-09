@@ -46,18 +46,15 @@ const PAGES = [
     sources: [{ file: 'docs/writing-good-handoffs.md' }],
   },
   {
-    slug: 'guides/delivery',
-    title: 'Delivery and privacy',
-    description: 'Channels, routes, link modes, and who can read what you send.',
-    sources: [
-      { file: 'README.md', section: 'Delivery' },
-      { file: 'README.md', section: 'Keeping handoffs private' },
-    ],
+    slug: 'guides/export',
+    title: 'Export a Markdown file',
+    description: 'Export a validated HANDOFF.md for another team to read and consume.',
+    sources: [{ file: 'README.md', section: 'Export' }],
   },
   {
     slug: 'guides/configuration',
     title: 'Configuration',
-    description: 'handoff.config.json: targets, language, routes and channels.',
+    description: 'handoff.config.json: targets, language, and consuming-team context.',
     sources: [{ file: 'README.md', section: 'Configuration' }],
   },
   {

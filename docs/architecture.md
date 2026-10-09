@@ -19,23 +19,22 @@ That boundary is why the rest of the design is simple:
 ## Layers
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│  mcp  ·  integrations/claude-code  ·  (future adapters)      │   agent surfaces
-│  tools + prompts over stdio   skills/handoff/SKILL.md        │
-├─────────────────────────────────────────────────────────────┤
-│                          cli                                 │   `handoff` binary
-│   init  context  create  list  show  validate  receive  send │
-├─────────────────────────────────────────────────────────────┤
-│                          core                                │   no model calls
-│  schema · markdown · config · git · collectors · context     │
-│  generate · storage · receive · channels · redact            │
-└─────────────────────────────────────────────────────────────┘
+┌───────────────────────────────────────────────────────────────┐
+│  mcp  ·  integrations/claude-code  ·  (future adapters)       │   agent surfaces
+│  tools + prompts over stdio   skills/handoff/SKILL.md         │
+├───────────────────────────────────────────────────────────────┤
+│                          cli                                  │   `handoff` binary
+│   init  context  create  list  show  validate  export receive │
+├───────────────────────────────────────────────────────────────┤
+│                          core                                 │   no model calls
+│  schema · markdown · config · git · collectors · context      │
+│  generate · storage · receive · export · redact               │
+└───────────────────────────────────────────────────────────────┘
 ```
 
-An earlier layout had `markdown/`, `git/` and `channels/` as separate packages.
-They are directories inside `core` instead: none of them has an independent consumer, and
-three extra `package.json` files would buy nothing but publish overhead. Splitting them
-later is a move, not a rewrite.
+Markdown, git inspection, local storage and export live inside `core`; they share the
+same schema and filesystem boundaries. The CLI and MCP server use that implementation
+so the resulting Markdown does not depend on which surface created it.
 
 ## Data flow
 
@@ -67,7 +66,7 @@ later is a move, not a rewrite.
                                   │
                           finished HANDOFF.md
                                   │
-                             validate → store → send
+                             validate → store → export
                                   │
                         ═══════ another machine ═══════
                                   │
@@ -164,8 +163,8 @@ Adding a collector is implementing `Collector` and appending to `BUILTIN_COLLECT
 
 ### `mcp`
 
-The agent-facing surface, and the one that makes the loop work without a terminal. Ten
-tools and two prompts over stdio, using `@modelcontextprotocol/server` — chosen over the
+The agent-facing surface, and the one that makes the loop work without a terminal.
+Tools and two prompts over stdio, using `@modelcontextprotocol/server` — chosen over the
 full SDK for its two dependencies rather than seventeen.
 
 The important pair:
@@ -185,15 +184,14 @@ Path handling is the security surface: arguments come from a model, and sometime
 document another team wrote. `--root` pins the server to one tree; every path is resolved
 through symlinks before it is checked against the project it claims to be in, so a link
 cannot widen the boundary; and files that exist to hold credentials are refused outright.
-The `file` channel writes only inside the project and never replaces a file that is not a
-copy of the same handoff, and `handoff_setup` never replaces an existing configuration
-unless told to.
+MCP exports stay inside the project, and `handoff_setup` never replaces an existing
+configuration unless told to.
 
 Results carry their full text in `structuredContent` as well as in `content`. Clients
 differ on which of the two they show the model — Claude Code shows the structured part — so
 a structured result that left the text out was a result some agents never saw: the
-document behind `handoff_read`, the brief behind `handoff_receive`, and the "now find a
-route" step behind `handoff_write`. `result.ts` does this for every tool, so no tool can
+document behind `handoff_read`, the brief behind `handoff_receive`, and the local file
+path behind `handoff_write`. `result.ts` does this for every tool, so no tool can
 forget it — `handoff_context` included, because its rendered brief carries guidance the
 JSON fields do not.
 
@@ -236,7 +234,7 @@ and never with `--no-input`. That single check is what keeps the same binary usa
 developer who wants to be asked and by a coding agent that would hang on the question.
 
 The flows in `interactive/` only gather answers; each one then calls the same command
-function the flag path calls. Nothing about creating, sending or receiving is implemented
+function the flag path calls. Nothing about creating, exporting or receiving is implemented
 twice.
 
 Both the prompt streams and the CLI's own output go through the session, so a test can
@@ -244,50 +242,24 @@ drive a whole interactive flow in-process and read back the transcript the user 
 seen. That seam is why `interactive.test.ts` can exist at all — a pseudo-terminal is not
 available everywhere the suite runs.
 
-### `channels/`
+### `export/`
 
-`HandoffChannel` has one method, and every channel declares one of three kinds, because the
-difference is what a developer is agreeing to:
+Export validates the complete document, rejects credential matches and unfilled templates,
+and writes a named `.md` file. The default destination is `.handoff/exports/<id>.md`.
+The exported bytes are the source bytes: frontmatter, whitespace and every section stay
+intact. The source document and its status are unchanged.
 
-- **local** — `file`, `clipboard`, `stdout`. Nothing leaves the machine.
-- **compose** — `whatsapp`, `email`. Opens the app with the message written; the developer
-  manually attaches the exported Markdown when needed, picks the recipients and presses
-  send. Nothing is sent by the tool — unless the link mode is `gist`, which uploads the
-  handoff first; the option and the result say so.
-- **push** — `slack`, `discord`, `trello`, `github`. Sends the handoff to a third party.
-  Each needs something the developer set up: a webhook for the first three, an
-  authenticated `gh` for gists.
-
-A send result that only opened a draft says so (`composed`), so no caller reports it as
-sent. Links in a message come from `shareLink`, which states who can read what it made:
-`repo` builds a forge URL only for hosts whose URL shape is certain (GitHub, GitLab,
-Bitbucket) and refuses one that would 404; `gist` says "anyone with the link". An opening
-line is shortened to fit a chat prefill by giving up the summary and then the title — never
-the link.
-
-Email uses a `mailto:` draft containing one plain summary and required-actions block. A
-`mailto:` URL cannot attach files automatically. When there is no share link, the handoff
-is exported as `.handoff/outbox/<handoff-id>.md` and the result reports its full local path.
-The developer manually attaches that file, chooses the recipients and presses send.
-WhatsApp uses a short actionable intro with the full share link when available. Without
-a link, it exports the named Markdown and reports its local path for the developer to
-attach manually in the chat. Clipboard file references are a convenience in some clients,
-never a guarantee that the file is attached.
-
-Routing (`routing.ts`) is policy: which team is reached how. `configProblems` reports what
-used to fail silently — a route to a channel that does not exist or is not configured, a
-`${VAR}` that is not set, and a webhook written straight into the config file.
-
-WhatsApp is compose-only on purpose. Its Cloud API refuses business-initiated messages
-outside a 24-hour window unless they match a pre-approved template, and sending through it
-would mean uploading the handoff to Meta.
+The CLI’s `handoff export` reports the exported path; its `--json` result also includes
+the source path and full Markdown. The MCP tool `handoff_export` returns the same complete
+Markdown and both paths. The artifact is ready for a file viewer or download surface;
+receiving tools consume the same Markdown format.
 
 ### `redact.ts`
 
 Scans for credential shapes before a handoff is stored (`handoff_write`, `create --stdin`)
-and before it is delivered, and whenever it is validated, with a placeholder filter so
+and before it is exported, and whenever it is validated, with a placeholder filter so
 `your-api-key-here` does not trip it. Unquoted assignments are matched only in the
-`UPPER_SNAKE=value` shape of `.env` files, because a false positive blocks a delivery
+`UPPER_SNAKE=value` shape of `.env` files, because a false positive blocks an export
 outright. A safety net, not a security control: a leaked key in
 a handoff is an accident, and catching the common accidental shapes is worth more than
 exhaustive coverage.

@@ -56,11 +56,7 @@ export function renderBrief(context: ChangeContext): string {
       : '- language: write the prose in English. Do not infer another language from the repository, even if its other documents use one.',
   );
   lines.push(`- when to ask: ${askGuidance(context.ask)}`);
-  lines.push(
-    context.routes.length > 0
-      ? `- delivery routes configured for this target: ${context.routes.join(', ')}. Offer one when you report back; never send without being asked.`
-      : '- delivery: no routes configured for this target. Say how they can send the file, and that routes can be configured once.',
-  );
+  lines.push('- output: write the complete Markdown handoff and report its file path.');
   lines.push('');
 
   if (context.existing.length > 0) {
@@ -245,7 +241,6 @@ export function briefToJson(context: ChangeContext): Record<string, unknown> {
     note: context.note,
     language: context.language,
     ask: context.ask,
-    routes: context.routes,
     warnings: context.warnings,
     existing_handoffs: context.existing.map((entry) => ({
       id: entry.id,

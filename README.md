@@ -13,14 +13,14 @@ teammate's agent reads it in *their* repository and knows exactly what to change
 not to build.
 
 ```
-finish a change  →  "write a handoff for mobile"  →  .handoff/<id>/HANDOFF.md  →  send it  →  their agent implements it
+finish a change  →  "write a handoff for mobile"  →  validate  →  export <id>.md  →  their agent reads it
 ```
 
 - **The tool collects the facts, the agent does the reasoning.** Git history, changed routes,
   auth guards, types, migrations and environment variables are gathered deterministically.
   What they *mean* to another team is written by the agent that built the change with you.
-- **Local-first.** Writing, validating and receiving a handoff never touches the network.
-  Nothing leaves your machine unless you choose a channel that sends it.
+- **Markdown files.** Create, validate, export and read the complete handoff locally.
+  The exported file is the artifact another developer or agent consumes.
 - **Works where you already are.** Plugins for Claude Code and Codex, an MCP server for any
   other agent, and a CLI for humans and scripts.
 
@@ -107,9 +107,10 @@ If the intent is unclear — two unrelated changes in the working tree, a target
 guess, a breaking call the code does not settle — it asks once, with its proposal already in
 the question.
 
-**3. You send it.** The agent looks up how your project reaches that team and offers you the
-routes. You pick; it opens WhatsApp with the message written, posts to Slack, creates a
-Trello card, or copies it — whatever you chose. Nothing is sent without you.
+**3. Export the Markdown.** The agent calls `handoff_export`, or you run
+`handoff export <id>`. It writes the complete document to `.handoff/exports/<id>.md` and
+reports the local file path. Open or download that file from your agent’s file view.
+You choose how to give the file to the other developer.
 
 **4. Their agent reads it.** In the mobile repository:
 
@@ -172,8 +173,7 @@ for Receiving Agent** — what it must *not* build. Three complete examples live
 | `handoff_context` | The deterministic brief: revision, changed files, and signals about routes, auth, contracts, migrations, environment and dependencies |
 | `handoff_source` | Read the files and diffs behind the brief |
 | `handoff_write` | Store a finished, validated handoff — prose in, facts from git |
-| `handoff_delivery_options` | Where this project actually sends things, and what is not set up |
-| `handoff_deliver` | Deliver through the route the developer picked |
+| `handoff_export` | Export the full, validated Markdown and report its local path |
 | `handoff_receive` | Read a handoff someone sent, narrowed to this repository |
 | `handoff_list` · `handoff_read` · `handoff_validate` · `handoff_setup` | |
 
@@ -190,88 +190,30 @@ The core never calls a model. The brief is fast, offline and the same for every 
 it says what it cannot know: its last section is titled *"What this brief does not
 contain"*.
 
-## Delivery
+## Export
 
-A handoff is a Markdown file, so it already travels through anything. The point of the
-channels is that "you can share this now" is not an instruction: the tool knows where your
-team actually sends things.
+The output is one complete Markdown file: frontmatter, summary, required actions,
+contracts, verification, and every other section the author wrote.
 
-| Channel | Kind | What happens | Who can read it |
-|---|---|---|---|
-| `file` · `clipboard` | local | copies it | you |
-| `whatsapp` | compose | opens a short actionable intro; **you attach the file if needed, pick the chats and press send** | the people you send it to — and, with `link: gist`, anyone with the link |
-| `email` | compose | opens a draft with the summary and required actions; **you attach the file if needed, pick the recipients and press send** | the people you send it to — and, with `link: gist`, anyone with the link |
-| `slack` | push | posts the summary and required actions | the channel |
-| `discord` | push | posts the summary with the handoff attached | the channel |
-| `trello` | push | creates a card with the handoff as its description | the board |
-| `github` | push | uploads a secret gist | **anyone with the link** |
-
-Compose channels send nothing themselves — unless their link mode is `gist`, which uploads
-the handoff as a secret gist first; the delivery options and the send both say so. Push
-channels send the handoff to a third party:
-`slack`, `discord` and `trello` need a webhook you configure, and `github` needs an
-authenticated `gh` CLI. Your agent is told to ask before it delivers anything, every time.
-
-Route them per target so the answer is automatic:
-
-```json
-{
-  "channels": {
-    "slack":    { "webhook": "${SLACK_WEBHOOK_URL}", "label": "#backend-releases", "link": "repo" },
-    "whatsapp": { "link": "repo" },
-    "trello":   { "webhook": "${TRELLO_CARDS_URL}", "label": "Mobile board" }
-  },
-  "routes": { "mobile": ["whatsapp", "trello"], "devops": ["slack"], "default": ["clipboard"] }
-}
+```bash
+handoff validate <id> --strict
+handoff export <id>
+handoff export ./HANDOFF.md --out ./exports/backend-auth.md
 ```
 
-**WhatsApp** has no honest way to *send* a document programmatically: its Cloud API refuses
-business-initiated messages outside a 24-hour customer-service window unless they match a
-pre-approved template, and it would mean uploading your handoff to Meta. So `whatsapp` opens
-the app with the message written and lets you pick the chats there — one person, several, or
-a group. No phone numbers in config; `--to` is only a shortcut for one fixed person.
+Without `--out`, the file is written to `.handoff/exports/<id>.md`. Export checks the
+handoff and copies its original bytes, so the result is the full document rather than a
+message preview or a shortened summary. It reports the exported path; `--json` also
+returns the source path and complete Markdown for automation.
 
-**Trello** takes either a `webhook` — Trello's own REST endpoint
-(`https://api.trello.com/1/cards?idList=…&key=…&token=…`) or an automation service that
-creates a card from JSON — or the board's email-to-board address as `to`, which opens a
-draft instead. Either URL carries a credential, so write `${ENV_VAR}` in the config.
+With MCP, ask the agent to call `handoff_export` and show you the exported file. Open or
+download it from the client’s file view, then give that Markdown to the receiving agent.
+The receiver can use `handoff receive <path> --as mobile` to read the required actions for
+its repository.
 
-WhatsApp opens a short actionable intro with the full share link when one is configured
-and available. Otherwise, the named Markdown is exported locally and its full path is
-shown to you. Attach that file manually in the chat, choose the recipients, then press
-send. The tool sends no WhatsApp message.
-
-**Email** opens a `mailto:` draft with one plain summary and required-actions block. A
-`mailto:` link cannot attach a file automatically. When there is no share link, the tool
-exports `.handoff/outbox/<handoff-id>.md` and shows its full local path. Manually attach
-that file in your mail client, choose the recipients, then press send. When the draft
-contains a share link, you can send it without an attachment. The tool sends no email.
-
-## Keeping handoffs private
-
-A handoff describes your unreleased work, so where it ends up matters.
-
-**On disk.** Handoffs live in `.handoff/`. Committing them to a **private** repository is
-usually best: teammates get them by pulling, and nothing is public or indexable.
-`handoff config --gitignore` keeps them out of git entirely. Committing them to a *public*
-repository publishes them — the one combination to avoid.
-
-**In a message.** The `link` mode decides who can read what you send:
-
-| `link` | Who can read it |
-|---|---|
-| `repo` | whoever can read the repository — a private repository stays private, and nothing is uploaded |
-| `gist` | **anyone with the URL**, GitHub account or not |
-| `none` | only the people you hand the file to |
-
-`repo` links to the handoff where it is already committed, so there is no second copy to
-leak. It needs the handoff pushed, and it refuses rather than handing you a link that would
-404. It builds links for GitHub, GitLab and Bitbucket remotes, and says so for anything else
-instead of guessing.
-
-**A GitHub "secret" gist is not private.** In GitHub's words: *"Secret gists aren't private…
-if someone you don't know discovers the URL, they'll also be able to see your gist."* Every
-send reports who can read the link it made, so nobody has to guess.
+Handoffs and exports are local files. Use `handoff config --gitignore` to keep `.handoff/`
+out of git, or keep them in a private repository when your team wants them versioned.
+A file committed to a public repository is public. Review the document before sharing it.
 
 ## Security
 
@@ -279,18 +221,15 @@ A handoff you receive was written by another team. The tooling treats it as data
 
 - **Paths are confined.** The MCP server reads and writes only inside the project it is
   given (and only under `--root`, when pinned), with symlinks resolved before the check —
-  including the copy it makes for attaching to a message, which goes in `.handoff/outbox/`
-  and keeps itself out of git. A handoff's `id` never chooses where a file is written; one
-  that would escape is filed under a safe derived name instead.
+  including exported Markdown files. A handoff’s `id` never chooses an arbitrary file
+  path; exports require a safe id for the filename.
 - **Credentials are refused.** Documents are scanned for credential-shaped strings before
   they are stored by `handoff_write` or `handoff create --stdin`, and every handoff is
-  scanned again before it is delivered. Validation — CLI or MCP — reports what it finds and
+  scanned again before it is exported. Validation — CLI or MCP — reports what it finds and
   fails. A handoff you receive that carries one is read but not stored, so it is never
   committed here.
   Files that exist to hold secrets — `.env`, keys, `.npmrc`, cloud credentials — are never
   read.
-- **Webhooks stay out of config files.** Write `${ENV_VAR}`; `handoff config` and the
-  delivery tools warn about a webhook written into `handoff.config.json`.
 - **Incoming instructions are not commands.** The receiving brief tells the agent to weigh
   the document's claims against its own repository, not to obey it.
 
@@ -308,9 +247,7 @@ See [`SECURITY.md`](SECURITY.md) to report a vulnerability.
   "identity": null,
   "language": null,
   "ask": "when-unclear",
-  "gitignore": false,
-  "channels": {},
-  "routes": {}
+  "gitignore": false
 }
 ```
 
@@ -319,11 +256,10 @@ See [`SECURITY.md`](SECURITY.md) to report a vulnerability.
 | `project` | Logical name written into `source.project` |
 | `targets` | Consumers this project hands off to, offered in prompts |
 | `defaultTarget` | Target assumed by `handoff create` when none is given |
-| `identity` | Which consumer *this* repository is — narrows handoffs you receive. Separate from `defaultTarget`, which is who you send *to* |
+| `identity` | Which consumer *this* repository is — narrows handoffs you receive. Separate from `defaultTarget`, which is who the handoff addresses |
 | `language` | Prose language; `null` means English. `##` headings stay English, since they are the machine contract |
 | `ask` | When the agent checks in: `when-unclear` (default), `always`, `never` |
 | `gitignore` | `true` keeps `.handoff/` out of git |
-| `channels` · `routes` | Delivery, as above. A channel's `template` replaces the opening line; `{title}`, `{who}`, `{summary}` and `{url}` are filled in, and the link is never shortened |
 
 ## CLI
 
@@ -335,7 +271,7 @@ See [`SECURITY.md`](SECURITY.md) to report a vulnerability.
 | `handoff list` · `show` | List handoffs (`--inbox` for received ones), print one |
 | `handoff validate <id\|path>` | Check against the v1 schema (`--strict` fails on warnings) |
 | `handoff receive <path>` | Read an incoming handoff (`--as mobile` to narrow it) |
-| `handoff send <id>` | Deliver through a channel (`--list` shows what is set up) |
+| `handoff export <file\|id>` | Export the complete Markdown (`--out` chooses the local path; `--json` returns paths) |
 | `handoff config` | Show or change settings, and report configuration problems |
 | `handoff install claude-code\|mcp` | Install the skills, or add the MCP server to Claude Desktop |
 
@@ -344,8 +280,8 @@ Prompting turns on only when both stdin and stdout are a terminal, so an agent s
 or a CI job gets the non-interactive behaviour automatically. Full reference in
 [`docs/cli.md`](docs/cli.md).
 
-A scaffold from `handoff create` is a draft, not a deliverable: `send` refuses it, and a
-document marked `ready` that still carries a TODO fails validation.
+A scaffold from `handoff create` still needs the agent’s prose. Export refuses unfilled
+TODO markers, and a document marked `ready` that still carries a TODO fails validation.
 
 ## Limitations
 
@@ -355,9 +291,8 @@ This is 0.1. What it does not do yet, plainly:
   TypeScript/JavaScript and Python backends. Go, Rails and OpenAPI are partly covered; Django,
   Spring, Ktor, Swift and Kotlin types are not detected yet. The agent reads the code either
   way — the brief is a starting point, never the verdict.
-- **Attachments are manual.** On macOS the exported file is revealed in Finder; its
-  local path is shown on every platform. Select that file in your mail or chat client
-  before sending. A clipboard file reference does not attach a file in every client.
+- **Downloads depend on your client.** The tool returns a local Markdown file path.
+  Clients with a file view can open or download it; other clients show the path.
 - **No acknowledgement tracking.** A handoff does not know whether it was read.
 - **Claude Code and Codex are the tested clients**, each with a plugin. Any other MCP client
   works through the server alone.
@@ -367,7 +302,7 @@ This is 0.1. What it does not do yet, plainly:
 ```
 packages/
   core/                        schema, Markdown, git context, collectors, validation,
-                               storage, channels, and the shared method. No model calls.
+                               storage, Markdown export, and the shared method. No model calls.
   mcp/                         the MCP server: tools and prompts over stdio
   cli/                         the `handoff` binary
   integrations/claude-code/    the Claude Code plugin and its generated skills

@@ -161,14 +161,14 @@ export function writeTool(boundary: Boundary) {
       assertWithinBoundary(boundary, directory, 'The handoff directory for this project');
       const store = new HandoffStore(directory);
       // A taken id is a decision for the developer, not for this tool or the agent: the
-      // earlier handoff may already have been sent. Silently filing a second copy left two
+      // earlier handoff may already be in use. Silently filing a second copy left two
       // near-identical documents; silently replacing lost one.
       const taken = store.exists(handoff.frontmatter.id) && !input.overwrite ? existingSummary(store, handoff.frontmatter.id) : null;
       if (taken) {
         const alternative = uniqueId(handoff.frontmatter.id, (id) => store.exists(id));
         return errorResult(
           `Not stored — a handoff with id "${taken.id}" already exists: "${taken.title}", written ${taken.created_at}, for ${taken.targets.join(', ') || 'any consumer'}.\n\n` +
-            'Ask the developer which they want, with your question tool if you have one — it may already have been sent:\n' +
+            'Ask the developer which they want, with your question tool if you have one — it may already be in use:\n' +
             `- update it: call handoff_write again with id: "${taken.id}" and overwrite: true\n` +
             `- keep both: call handoff_write again with id: "${alternative}"`,
           { ok: false, exists: taken, alternative_id: alternative },
@@ -198,7 +198,7 @@ export function writeTool(boundary: Boundary) {
 
       const path = store.save(handoff);
       const notes = validation.warnings.length
-        ? `\n\nWorth a look before you send it:\n${formatIssueList(validation.warnings)}`
+        ? `\n\nWorth a look before you export it:\n${formatIssueList(validation.warnings)}`
         : '';
 
       return textResult(
@@ -206,8 +206,7 @@ export function writeTool(boundary: Boundary) {
           `id: ${handoff.frontmatter.id}\n` +
           `targets: ${targets.join(', ') || 'any consumer'}\n` +
           `breaking: ${input.breaking}\n` +
-          `Now call handoff_delivery_options to see how this project reaches ${targets.join(', ') || 'this consumer'}, ` +
-          `and offer the developer a specific route. Do not deliver without being asked.${notes}`,
+          `Now call handoff_export to create the complete local Markdown file and report its path.${notes}`,
         {
           ok: true,
           id: handoff.frontmatter.id,

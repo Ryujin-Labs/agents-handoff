@@ -12,10 +12,11 @@ import {
   writeFileSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { dirname, join } from 'node:path';
+import { delimiter, dirname, join } from 'node:path';
 import { after, before, describe, it } from 'node:test';
 import { parseHandoff } from 'ryujin-handoff-core';
 import { makeRepo, SERVER_BIN, TestClient, writeArgs } from './client.ts';
+import { exportTool } from '../src/tools/manage.ts';
 
 const repo = makeRepo();
 const dirs = [repo];
@@ -49,13 +50,12 @@ describe('handshake', () => {
 
   it('lists every tool with a description and a schema', async () => {
     const result = (await client.request('tools/list')) as {
-      tools: Array<{ name: string; description?: string; inputSchema: Record<string, unknown> }>;
+      tools: Array<{ name: string; description?: string; inputSchema: Record<string, unknown>; annotations?: { openWorldHint?: boolean } }>;
     };
     const names = result.tools.map((tool) => tool.name).sort();
     assert.deepEqual(names, [
       'handoff_context',
-      'handoff_deliver',
-      'handoff_delivery_options',
+      'handoff_export',
       'handoff_list',
       'handoff_read',
       'handoff_receive',
@@ -67,6 +67,7 @@ describe('handshake', () => {
     for (const tool of result.tools) {
       assert.ok((tool.description ?? '').length > 40, `${tool.name} needs a real description`);
       assert.equal(tool.inputSchema['type'], 'object');
+      assert.equal(tool.annotations?.openWorldHint, false, `${tool.name} must operate locally`);
     }
   });
 
@@ -318,7 +319,7 @@ describe('handoff_receive', () => {
   });
 });
 
-describe('handoff_validate and handoff_deliver', () => {
+describe('handoff_validate and handoff_export', () => {
   it('validates a stored handoff', async () => {
     const result = await client.callTool('handoff_validate', {
       project_dir: repo,
@@ -336,46 +337,47 @@ describe('handoff_validate and handoff_deliver', () => {
     assert.equal(result.isError, true);
   });
 
-  it('returns the markdown for the text channel', async () => {
-    const result = await client.callTool('handoff_deliver', {
-      project_dir: repo,
-      id: 'facts-check',
-      channel: 'text',
-    });
+  it('exports the complete exact Markdown, including formatting and status', async () => {
+    const fresh = makeRepo();
+    dirs.push(fresh);
+    const written = await client.callTool('handoff_write', writeArgs(fresh, { id: 'complete-export' }));
+    assert.equal(written.isError, false, written.text);
+    const sourcePath = String(written.structured?.['path']);
+    const markdown = readFileSync(sourcePath, 'utf8').replace(/^status: ready$/m, 'status: delivered').replace(/\n/g, '\r\n');
+    writeFileSync(sourcePath, markdown);
+    const result = await client.callTool('handoff_export', { project_dir: fresh, id: 'complete-export' });
     assert.equal(result.isError, false, result.text);
-    assert.match(result.text, /^---\nhandoff_version: 1/);
+    const path = String(result.structured?.['path']);
+    assert.equal(path, realpathSync(join(fresh, '.handoff', 'exports', 'complete-export.md')));
+    assert.equal(result.text, markdown);
+    assert.equal(result.structured?.['content'], markdown);
+    assert.equal(result.structured?.['markdown'], markdown);
+    assert.equal(result.structured?.['source_path'], sourcePath);
+    assert.equal(readFileSync(path, 'utf8'), markdown);
+    assert.equal(readFileSync(sourcePath, 'utf8'), markdown, 'source bytes and status changed');
+    assert.match(markdown, /status: delivered/);
+    assert.deepEqual(readdirSync(dirname(sourcePath)), ['HANDOFF.md'], 'created a delivery receipt');
+    assert.match(markdown, /## Required Actions/);
+    assert.match(markdown, /## Verification/);
+    assert.match(markdown, /## Instructions for Receiving Agent/);
+    for (const key of ['sent', 'channel', 'deliveries', 'url', 'share_url', 'uploaded']) {
+      assert.ok(!(key in (result.structured ?? {})), `unexpected delivery field: ${key}`);
+    }
   });
 
-  it('writes a copy for the file channel', async () => {
-    const target = join(repo, 'out', 'sent.md');
-    const result = await client.callTool('handoff_deliver', {
+  it('exports a copy to an optional project Markdown path', async () => {
+    const target = join(repo, 'out', 'handoff.md');
+    const result = await client.callTool('handoff_export', {
       project_dir: repo,
       id: 'facts-check',
-      channel: 'file',
-      to: target,
+      output_path: target,
     });
     assert.equal(result.isError, false, result.text);
-    assert.ok(existsSync(target));
-  });
-
-  it('returns a readable email export and manual attachment instructions without opening or sending', async () => {
-    const result = await client.callTool('handoff_deliver', {
-      project_dir: repo,
-      id: 'facts-check',
-      channel: 'email',
-      link: 'none',
-      open: false,
-    });
-    assert.equal(result.isError, false, result.text);
-    assert.equal(result.structured?.['sent'], false);
-    const exported = result.structured?.['exported_path'] as string;
-    assert.equal(exported, realpathSync(join(repo, '.handoff', 'outbox', 'facts-check.md')));
-    assert.equal(readFileSync(exported, 'utf8'), readFileSync(join(repo, '.handoff', 'facts-check', 'HANDOFF.md'), 'utf8'));
-    assert.match(result.text, /No file is attached automatically/);
-    assert.match(result.text, /Choose a recipient/);
-    const body = new URL(result.structured?.['url'] as string).searchParams.get('body') ?? '';
-    assert.doesNotMatch(body, /Sending the file next/);
-    assert.ok(!body.includes(exported));
+    assert.equal(result.structured?.['path'], realpathSync(target));
+    assert.equal(readFileSync(target, 'utf8'), readFileSync(join(repo, '.handoff', 'facts-check', 'HANDOFF.md'), 'utf8'));
+    const again = await client.callTool('handoff_export', { project_dir: repo, id: 'facts-check', output_path: target });
+    assert.equal(again.isError, false, again.text);
+    assert.equal(again.text, result.text);
   });
 });
 
@@ -475,51 +477,6 @@ describe('the methodology is shared, not duplicated', () => {
   });
 });
 
-describe('handoff_delivery_options', () => {
-  it('answers "where do I send this?" with something specific', async () => {
-    const result = await client.callTool('handoff_delivery_options', {
-      project_dir: repo,
-      targets: ['mobile'],
-    });
-    assert.equal(result.isError, false, result.text);
-    assert.match(result.text, /No routes configured/);
-    assert.match(result.text, /clipboard/);
-    assert.ok(Array.isArray(result.structured?.['options']));
-  });
-
-  it('names the configured route once a project has one', async () => {
-    const routed = makeRepo();
-    dirs.push(routed);
-    writeFileSync(
-      join(routed, 'handoff.config.json'),
-      JSON.stringify({
-        version: 1,
-        project: 'svc',
-        channels: { slack: { webhook: '${DEMO_HOOK}', label: '#infra' } },
-        routes: { devops: ['slack'] },
-      }),
-    );
-    const result = await client.callTool('handoff_delivery_options', {
-      project_dir: routed,
-      targets: ['devops'],
-    });
-    assert.match(result.text, /Configured for devops: #infra/);
-    const slack = (result.structured?.['options'] as Array<{ id: string; routed: boolean }>).find(
-      (option) => option.id === 'slack',
-    );
-    assert.equal(slack?.routed, true);
-  });
-
-  it('reads the targets off a stored handoff when given an id', async () => {
-    await client.callTool('handoff_write', writeArgs(repo, { id: 'routing', overwrite: true }));
-    const result = await client.callTool('handoff_delivery_options', {
-      project_dir: repo,
-      id: 'routing',
-    });
-    assert.deepEqual(result.structured?.['targets'], ['mobile']);
-  });
-});
-
 describe('scope_paths', () => {
   it('narrows the change to one slice of a mixed tree', async () => {
     const full = await client.callTool('handoff_context', { project_dir: repo });
@@ -545,14 +502,12 @@ describe('scope_paths', () => {
   });
 });
 
-describe('the write tool points at delivery', () => {
-  it('tells the agent to find a route rather than declaring victory', async () => {
-    const result = await client.callTool(
-      'handoff_write',
-      writeArgs(repo, { id: 'next-step', overwrite: true }),
-    );
-    assert.match(result.text, /handoff_delivery_options/);
-    assert.match(result.text, /Do not deliver without being asked/);
+describe('the write tool points at a Markdown file', () => {
+  it('tells the agent to export the full document and report its path', async () => {
+    const result = await client.callTool('handoff_write', writeArgs(repo, { id: 'next-step', overwrite: true }));
+    assert.match(result.text, /handoff_export/);
+    assert.match(result.text, /complete local Markdown file/);
+    assert.doesNotMatch(result.text, /handoff_deliver|channel|configured route/);
   });
 });
 
@@ -667,32 +622,23 @@ describe('an incoming id never chooses where the copy is written', () => {
   });
 });
 
-describe('stdout is the protocol, not a delivery channel', () => {
-  it('does not advertise stdout as a delivery option', async () => {
-    const result = await client.callTool('handoff_delivery_options', { project_dir: repo });
-    assert.equal(result.isError, false, result.text);
-    const ids = (result.structured?.['options'] as Array<{ id: string }>).map((o) => o.id);
-    assert.ok(!ids.includes('stdout'), `stdout must not be offered: ${ids.join(', ')}`);
-    assert.ok(!/\bstdout\b/.test(result.text), result.text);
-  });
-
-  it('refuses to deliver to stdout, and the connection survives', async () => {
-    const fresh = new TestClient();
-    try {
-      await fresh.initialize();
-      const result = await fresh.callTool('handoff_deliver', {
-        project_dir: repo,
-        id: 'facts-check',
-        channel: 'stdout',
-      });
-      assert.equal(result.isError, true, result.text);
-      assert.match(result.text, /text/);
-      // The point of the refusal: the stream is still a stream afterwards.
-      const after = await fresh.callTool('handoff_read', { project_dir: repo, id: 'facts-check' });
-      assert.equal(after.isError, false, after.text);
-    } finally {
-      fresh.close();
+describe('removed delivery tools', () => {
+  it('rejects legacy tool calls as unknown and keeps the connection usable', async () => {
+    for (const name of ['handoff_deliver', 'handoff_delivery_options']) {
+      await client.request('tools/call', {
+        name,
+        arguments: { project_dir: repo, id: 'facts-check', channel: 'email', to: 'nobody@example.com' },
+      }).then(
+        (result) => {
+          assert.equal(result['isError'], true);
+          const text = (result['content'] as Array<{ text?: string }>).map((part) => part.text ?? '').join('\n');
+          assert.match(text, /unknown|not found|not registered/i);
+        },
+        (error: Error) => assert.match(error.message, /unknown|not found|not registered/i),
+      );
     }
+    const after = await client.callTool('handoff_read', { project_dir: repo, id: 'facts-check' });
+    assert.equal(after.isError, false, after.text);
   });
 });
 
@@ -716,7 +662,7 @@ describe('what an agent sees when its client shows only structured content', () 
       writeArgs(repo, { id: 'structured-next-step', overwrite: true }),
     );
     assert.equal(result.isError, false, result.text);
-    assert.match(seen(result), /handoff_delivery_options/);
+    assert.match(seen(result), /handoff_export/);
   });
 
   it('handoff_receive carries the whole brief, not only the narrowed actions', async () => {
@@ -734,9 +680,12 @@ describe('what an agent sees when its client shows only structured content', () 
     assert.match(seen(result), /## Instructions for Receiving Agent/);
   });
 
-  it('handoff_delivery_options carries its guidance line', async () => {
-    const result = await client.callTool('handoff_delivery_options', { project_dir: repo, targets: ['mobile'] });
-    assert.match(seen(result), /No routes configured|Configured for/);
+  it('handoff_export carries the full Markdown and its local path', async () => {
+    const result = await client.callTool('handoff_export', { project_dir: repo, id: 'facts-check' });
+    assert.equal(result.isError, false, result.text);
+    assert.equal(seen(result), readFileSync(String(result.structured?.['source_path']), 'utf8'));
+    assert.equal(result.structured?.['markdown'], seen(result));
+    assert.ok(existsSync(String(result.structured?.['path'])));
   });
 
   it('handoff_context carries its guidance as well as its fields', async () => {
@@ -763,7 +712,7 @@ describe('handoff_setup leaves an existing configuration alone', () => {
     const fresh = makeRepo();
     dirs.push(fresh);
     const path = join(fresh, 'handoff.config.json');
-    writeFileSync(path, `${JSON.stringify({ version: 1, project: 'kept', routes: { mobile: ['slack'] } }, null, 2)}\n`);
+    writeFileSync(path, `${JSON.stringify({ version: 1, project: 'kept', targets: ['mobile'] }, null, 2)}\n`);
 
     const refused = await client.callTool('handoff_setup', { project_dir: fresh, project_name: 'replaced' });
     assert.equal(refused.isError, true);
@@ -776,7 +725,7 @@ describe('handoff_setup leaves an existing configuration alone', () => {
   });
 });
 
-describe('handoff_deliver holds the same bar as the CLI', () => {
+describe('handoff_export holds the same bar as the CLI', () => {
   it('refuses a scaffold that still has TODO markers', async () => {
     const dir = join(repo, '.handoff', 'still-a-template');
     mkdirSync(dir, { recursive: true });
@@ -788,19 +737,32 @@ describe('handoff_deliver holds the same bar as the CLI', () => {
         .replace(/^status: .*$/m, 'status: draft')
         .replace('## Summary\n', '## Summary\n\n<!-- TODO -->\n'),
     );
-    const result = await client.callTool('handoff_deliver', { project_dir: repo, id: 'still-a-template', channel: 'text' });
+    const result = await client.callTool('handoff_export', { project_dir: repo, id: 'still-a-template' });
     assert.equal(result.isError, true);
     assert.match(result.text, /scaffold/);
+  });
+
+  it('refuses a stored document that does not conform to the schema', async () => {
+    const fresh = makeRepo();
+    dirs.push(fresh);
+    const dir = join(fresh, '.handoff', 'invalid-export');
+    mkdirSync(dir, { recursive: true });
+    const markdown = readFileSync(join(repo, '.handoff', 'facts-check', 'HANDOFF.md'), 'utf8')
+      .replace(/^id: .*$/m, 'id: invalid-export').replace(/^handoff_version: 1$/m, 'handoff_version: 2');
+    writeFileSync(join(dir, 'HANDOFF.md'), markdown);
+    const result = await client.callTool('handoff_export', { project_dir: fresh, id: 'invalid-export' });
+    assert.equal(result.isError, true, result.text);
+    assert.match(result.text, /invalid|version/i);
+    assert.equal(existsSync(join(fresh, '.handoff', 'exports')), false);
   });
 
   it('writes a file only inside the project', async () => {
     const outside = mkdtempSync(join(tmpdir(), 'handoff-outside-'));
     dirs.push(outside);
-    const result = await client.callTool('handoff_deliver', {
+    const result = await client.callTool('handoff_export', {
       project_dir: repo,
       id: 'facts-check',
-      channel: 'file',
-      to: join(outside, 'copy.md'),
+      output_path: join(outside, 'copy.md'),
     });
     assert.equal(result.isError, true);
     assert.equal(existsSync(join(outside, 'copy.md')), false);
@@ -808,11 +770,10 @@ describe('handoff_deliver holds the same bar as the CLI', () => {
 
   it('never replaces a file that is not a copy of the same handoff', async () => {
     writeFileSync(join(repo, 'precious.ts'), 'export const keep = true;\n');
-    const result = await client.callTool('handoff_deliver', {
+    const result = await client.callTool('handoff_export', {
       project_dir: repo,
       id: 'facts-check',
-      channel: 'file',
-      to: 'precious.ts',
+      output_path: 'precious.ts',
     });
     assert.equal(result.isError, true);
     assert.equal(readFileSync(join(repo, 'precious.ts'), 'utf8'), 'export const keep = true;\n');
@@ -830,23 +791,38 @@ describe('handoff_receive and files that were sent to you', () => {
   });
 });
 
-describe('handoff_delivery_options reports configuration mistakes', () => {
-  it('names a route to a channel that does not exist, and a webhook written into the file', async () => {
+describe('Markdown export has no app or network side effects', () => {
+  it('ignores legacy delivery configuration and does not invoke fetch or app executables', async () => {
     const fresh = makeRepo();
     dirs.push(fresh);
-    writeFileSync(
-      join(fresh, 'handoff.config.json'),
-      `${JSON.stringify({
-        version: 1,
-        project: 'svc',
-        channels: { slack: { webhook: 'https://hooks.slack.com/services/T000/B000/abcdefgh' } },
-        routes: { mobile: ['slak'] },
-      }, null, 2)}\n`,
-    );
-    const result = await client.callTool('handoff_delivery_options', { project_dir: fresh, targets: ['mobile'] });
-    const problems = (result.structured?.['config_problems'] ?? []) as string[];
-    assert.ok(problems.some((problem) => /"slak", which is not a channel/.test(problem)));
-    assert.ok(problems.some((problem) => /channels\.slack\.webhook is written into/.test(problem)));
+    await client.callTool('handoff_write', writeArgs(fresh, { id: 'file-only' }));
+    writeFileSync(join(fresh, 'handoff.config.json'), JSON.stringify({
+      version: 1, project: 'svc',
+      channels: { email: { to: 'nobody@example.com' }, slack: { webhook: 'http://127.0.0.1:9/never' } },
+      routes: { mobile: ['email', 'slack'] },
+    }));
+    const bin = join(fresh, 'blocked-apps');
+    mkdirSync(bin);
+    const marker = join(fresh, 'unexpected-app-call');
+    for (const executable of ['open', 'xdg-open', 'osascript', 'pbcopy', 'xclip', 'xsel', 'gh', 'curl']) {
+      writeFileSync(join(bin, executable), `#!/usr/bin/env node\nrequire('node:fs').appendFileSync(${JSON.stringify(marker)}, 'unexpected'); process.exitCode = 99;\n`, { mode: 0o755 });
+    }
+    const previousPath = process.env['PATH'];
+    const previousFetch = globalThis.fetch;
+    let requests = 0;
+    process.env['PATH'] = `${bin}${delimiter}${previousPath ?? ''}`;
+    globalThis.fetch = async () => { requests += 1; throw new Error('Network access is forbidden during Markdown export'); };
+    try {
+      const result = await exportTool({ root: realpathSync(fresh) })({ project_dir: fresh, id: 'file-only' });
+      assert.ok(!result.isError, JSON.stringify(result.content));
+      assert.equal(existsSync(marker), false, 'opened an app or invoked an external delivery executable');
+      assert.equal(requests, 0, 'performed a network request');
+      assert.equal(readFileSync(join(fresh, '.handoff', 'file-only', 'HANDOFF.md'), 'utf8'), readFileSync(join(fresh, '.handoff', 'exports', 'file-only.md'), 'utf8'));
+    } finally {
+      if (previousPath === undefined) delete process.env['PATH'];
+      else process.env['PATH'] = previousPath;
+      globalThis.fetch = previousFetch;
+    }
   });
 });
 
@@ -946,50 +922,57 @@ describe('the pinned root holds for writes, too', () => {
   });
 });
 
-describe('handoff_deliver follows every route, and never stdout', () => {
-  it('delivers to each routed channel, refuses a stdout route, and the connection survives', async () => {
+describe('handoff_export respects output boundaries', () => {
+  it('writes independent local files with no output path specified', async () => {
     const fresh = makeRepo();
     dirs.push(fresh);
-    writeFileSync(
-      join(fresh, 'handoff.config.json'),
-      `${JSON.stringify({ version: 1, project: 'svc', routes: { mobile: ['file'], web: ['stdout'] } })}\n`,
-    );
-    const written = await client.callTool('handoff_write', writeArgs(fresh, { id: 'two-teams', targets: ['mobile', 'web'] }));
-    assert.equal(written.isError, false, written.text);
-
-    const result = await client.callTool('handoff_deliver', { project_dir: fresh, id: 'two-teams', open: false });
-    const deliveries = (result.structured?.['deliveries'] ?? []) as Array<{ channel: string; ok: boolean }>;
-    assert.deepEqual(deliveries.map((entry) => entry.channel).sort(), ['file', 'stdout']);
-    assert.equal(deliveries.find((entry) => entry.channel === 'stdout')?.ok, false);
-    assert.equal(deliveries.find((entry) => entry.channel === 'file')?.ok, true);
-
-    // The server is still speaking JSON-RPC.
-    const after = await client.callTool('handoff_list', { project_dir: fresh });
-    assert.equal(after.isError, false);
-  });
-
-  it('puts a file delivery with no destination in an outbox directory, every time', async () => {
-    const fresh = makeRepo();
-    dirs.push(fresh);
-    await client.callTool('handoff_write', writeArgs(fresh, { id: 'first-out' }));
-    await client.callTool('handoff_write', writeArgs(fresh, { id: 'second-out' }));
-    for (const id of ['first-out', 'second-out']) {
-      const result = await client.callTool('handoff_deliver', { project_dir: fresh, id, channel: 'file' });
+    for (const id of ['first-export', 'second-export']) {
+      await client.callTool('handoff_write', writeArgs(fresh, { id }));
+      const result = await client.callTool('handoff_export', { project_dir: fresh, id });
       assert.equal(result.isError, false, result.text);
-      assert.ok(existsSync(join(fresh, '.handoff', 'outbox', `${id}.md`)));
+      assert.ok(existsSync(join(fresh, '.handoff', 'exports', `${id}.md`)));
     }
   });
 
-  it('does not write through a dangling symlink to outside the project', async () => {
+  it('does not write through a dangling symlink outside the project', async () => {
     const fresh = makeRepo();
     dirs.push(fresh);
     const outside = mkdtempSync(join(tmpdir(), 'handoff-dangling-'));
     dirs.push(outside);
     symlinkSync(join(outside, 'planted.md'), join(fresh, 'copy.md'));
     await client.callTool('handoff_write', writeArgs(fresh, { id: 'dangling' }));
-    const result = await client.callTool('handoff_deliver', { project_dir: fresh, id: 'dangling', channel: 'file', to: 'copy.md' });
+    const result = await client.callTool('handoff_export', { project_dir: fresh, id: 'dangling', output_path: 'copy.md' });
     assert.equal(result.isError, true, result.text);
     assert.equal(existsSync(join(outside, 'planted.md')), false);
+  });
+
+  it('refuses a default export directory that links outside the project', async () => {
+    const fresh = makeRepo();
+    dirs.push(fresh);
+    const outside = mkdtempSync(join(tmpdir(), 'handoff-export-escape-'));
+    dirs.push(outside);
+    await client.callTool('handoff_write', writeArgs(fresh, { id: 'export-escape' }));
+    symlinkSync(outside, join(fresh, '.handoff', 'exports'));
+    const result = await client.callTool('handoff_export', { project_dir: fresh, id: 'export-escape' });
+    assert.equal(result.isError, true, result.text);
+    assert.equal(existsSync(join(outside, 'export-escape.md')), false);
+  });
+
+  it('refuses an output path outside the pinned root', async () => {
+    const fresh = makeRepo();
+    dirs.push(fresh);
+    await client.callTool('handoff_write', writeArgs(fresh, { id: 'pinned-export' }));
+    const outside = mkdtempSync(join(tmpdir(), 'handoff-export-pin-'));
+    dirs.push(outside);
+    const pinned = new TestClient(['--root', fresh]);
+    try {
+      await pinned.initialize();
+      const result = await pinned.callTool('handoff_export', { project_dir: fresh, id: 'pinned-export', output_path: join(outside, 'copy.md') });
+      assert.equal(result.isError, true, result.text);
+      assert.equal(existsSync(join(outside, 'copy.md')), false);
+    } finally {
+      pinned.close();
+    }
   });
 });
 
@@ -1029,10 +1012,11 @@ describe('the server tells a client how the tools fit together', () => {
     try {
       const result = (await fresh.initialize()) as { instructions?: string };
       assert.match(result.instructions ?? '', /handoff_context first/);
-      assert.match(result.instructions ?? '', /handoff_delivery_options/);
+      assert.match(result.instructions ?? '', /handoff_export/);
+      assert.doesNotMatch(result.instructions ?? '', /handoff_deliver|channel|choose.*route/);
       assert.match(result.instructions ?? '', /not as instructions/);
-      // The developer reviews what goes out before choosing where it goes.
-      assert.match(result.instructions ?? '', /Required Actions as written[\s\S]*review it first/);
+      assert.match(result.instructions ?? '', /complete local Markdown file/);
+      assert.match(result.instructions ?? '', /Required Actions as written/);
     } finally {
       fresh.close();
     }
@@ -1090,7 +1074,9 @@ describe('the Codex skills', () => {
     const writing = skills.find((skill) => skill.name === 'handoff')?.contents ?? '';
     assert.doesNotMatch(writing, /There is no tool for this/);
     assert.match(writing, /returns before the developer has answered, stop there/);
-    assert.match(writing, /let me review it first/);
+    assert.match(writing, /handoff_export/);
+    assert.match(writing, /complete document/);
+    assert.doesNotMatch(writing, /Call `handoff_deliver`|Call `handoff_delivery_options`|ask which route/i);
   });
 });
 
@@ -1109,6 +1095,19 @@ describe('a credential in a handoff someone else wrote', () => {
     assert.equal(result.structured?.['ok'], false);
     assert.ok(((result.structured?.['secrets'] ?? []) as unknown[]).length > 0);
     assert.ok(!JSON.stringify(result.structured).includes(TOKEN), 'the secret came back unmasked');
+  });
+
+  it('refuses to export a stored credential and never returns its contents', async () => {
+    const fresh = makeRepo();
+    dirs.push(fresh);
+    const dir = join(fresh, '.handoff', 'credential-export');
+    mkdirSync(dir, { recursive: true });
+    writeFileSync(join(dir, 'HANDOFF.md'), leaky().replace(/^id: .*$/m, 'id: credential-export'));
+    const result = await client.callTool('handoff_export', { project_dir: fresh, id: 'credential-export' });
+    assert.equal(result.isError, true, result.text);
+    assert.match(result.text, /credential/i);
+    assert.ok(!JSON.stringify(result).includes(TOKEN));
+    assert.equal(existsSync(join(fresh, '.handoff', 'exports')), false);
   });
 
   it('is read by handoff_receive but not stored', async () => {

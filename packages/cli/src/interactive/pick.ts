@@ -1,12 +1,10 @@
 import {
-  deliveryOptions,
   handoffDirectory,
   HandoffStore,
   loadConfig,
   normalizeTarget,
   SUGGESTED_TARGETS,
   type Direction,
-  type HandoffConfig,
   type LoadedConfig,
   type StoredHandoff,
 } from 'ryujin-handoff-core';
@@ -104,32 +102,6 @@ export async function pickHandoff(
   });
 
   return select<StoredHandoff>({ message, choices });
-}
-
-/** Choose a delivery channel, hiding any that cannot run on this machine. */
-/**
- * Pick a channel, judged with this project's settings and led by its routes.
- *
- * Asking each channel whether it works with no settings at all hid every configured
- * webhook, and listing them in a fixed order hid the answer the project already gave for
- * this team. Routed channels come first; the rest follow; blocked ones are left out.
- */
-export async function pickChannel(config: HandoffConfig, targets: readonly string[]): Promise<string> {
-  const options = deliveryOptions(config, targets).filter(
-    (option) => option.available && option.id !== 'stdout',
-  );
-  const choices: Array<Choice<string>> = options.map((option) => ({
-    value: option.id,
-    label: option.label ? `${option.id} → ${option.label}` : option.id,
-    hint: [
-      option.routed ? 'routed' : '',
-      option.description.replace(/\.$/, ''),
-      option.uploads ? `uploads ${option.uploads}` : '',
-    ]
-      .filter(Boolean)
-      .join(' · '),
-  }));
-  return select<string>({ message: 'Send it where?', choices });
 }
 
 /** A short line describing where a repository currently stands. */

@@ -15,20 +15,6 @@ export function writeTextFile(path: string, contents: string): void {
   writeFileSync(path, contents, 'utf8');
 }
 
-/**
- * A directory for copies made to be attached or handed on, which keeps itself out of git.
- *
- * Every handoff is stored as `HANDOFF.md`, so a copy named after its id is made for sending.
- * Committed, that copy would drift from the original; ignored by a file inside the
- * directory itself, it stays local whatever the repository's own `.gitignore` says.
- */
-export function prepareOutbox(dir: string): string {
-  mkdirSync(dir, { recursive: true });
-  const ignore = join(dir, '.gitignore');
-  if (!existsSync(ignore)) writeFileSync(ignore, '# Copies made for attaching to a message.\n*\n', 'utf8');
-  return dir;
-}
-
 export function readJsonIfExists<T>(path: string): T | null {
   const text = readTextIfExists(path);
   if (text === null) return null;

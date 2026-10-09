@@ -5,7 +5,6 @@ import { parseUnifiedDiff, type FileDiff } from '../collectors/diff.ts';
 import type { CollectorContext, CollectorResult, Signal } from '../collectors/types.ts';
 import { handoffDirectory, type LoadedConfig } from '../config/index.ts';
 import { CONFIG_FILENAME } from '../constants.ts';
-import { routesFor } from '../config/channels.ts';
 import { Git, type ChangedFile, type RepoInfo, type Revision } from '../git/index.ts';
 import { HandoffStore } from '../storage/index.ts';
 import { resolveRevision, type RevisionRequest } from './revision.ts';
@@ -28,8 +27,6 @@ export interface ChangeContext {
   language: string | null;
   /** How readily the generating agent should check in. */
   ask: import('../config/index.ts').AskPolicy;
-  /** Channels configured to reach the targets of this handoff. */
-  routes: string[];
   /** Non-fatal problems, e.g. "not a git repository". */
   warnings: string[];
   /**
@@ -68,7 +65,9 @@ export function collectChangeContext(options: CollectOptions): ChangeContext {
   const { loaded } = options;
   const root = loaded.root;
   const git = new Git(root);
-  const warnings: string[] = [];
+  const warnings: string[] = loaded.ignoredFields.length > 0
+    ? [`Ignored legacy configuration: ${loaded.ignoredFields.join(', ')}. Handoffs are exported as Markdown files only.`]
+    : [];
   const generatedAt = (options.now ?? new Date()).toISOString();
 
   if (!git.isRepo()) {
@@ -84,8 +83,7 @@ export function collectChangeContext(options: CollectOptions): ChangeContext {
       note: options.note ?? null,
       language: loaded.config.language,
       ask: loaded.config.ask,
-      routes: routesFor(loaded.config.routes, loaded.config.channels, options.targets ?? []),
-      warnings: ['Not a git repository, so no change context could be collected.'],
+      warnings: [...warnings, 'Not a git repository, so no change context could be collected.'],
       existing: [],
       generatedAt,
     };
@@ -200,7 +198,6 @@ export function collectChangeContext(options: CollectOptions): ChangeContext {
     note: options.note ?? null,
     language: loaded.config.language,
     ask: loaded.config.ask,
-    routes: routesFor(loaded.config.routes, loaded.config.channels, options.targets ?? []),
     warnings,
     existing: existingHandoffs(loaded, repo, options.now ?? new Date()),
     generatedAt,

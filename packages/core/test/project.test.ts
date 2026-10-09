@@ -1,7 +1,6 @@
 import assert from 'node:assert/strict';
-import { existsSync, lstatSync, mkdirSync, readFileSync, symlinkSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import { delimiter, join } from 'node:path';
+import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { after, describe, it } from 'node:test';
 import {
   defaultConfig,
@@ -24,19 +23,7 @@ import { analyzeReceived, renderReceiveBrief } from '../src/receive/index.ts';
 import { normalizeTarget, parseTargets } from '../src/targets.ts';
 import { resolveRevision } from '../src/context/revision.ts';
 import { Git } from '../src/git/index.ts';
-import { configProblems, deliveryOptions } from '../src/channels/routing.ts';
-import { filesystemChannel } from '../src/channels/filesystem.ts';
 import { composeHandoff } from '../src/generate/compose.ts';
-import { createStdoutChannel } from '../src/channels/stdout.ts';
-import { chatOpener, emailChannel, repoLink, shareLink, slackChannel, trelloChannel, whatsappChannel } from '../src/channels/remote.ts';
-import { clearWhichCache, which } from '../src/util/which.ts';
-import { hasUrlHandler } from '../src/util/desktop.ts';
-import {
-  hasUnresolvedEnv,
-  literalSecrets,
-  resolveChannelSettings,
-  routesFor,
-} from '../src/config/channels.ts';
 import { findSecrets, mask } from '../src/redact.ts';
 import { slugify, uniqueId } from '../src/util/slug.ts';
 import { commitAll, git, initRepo, removeDir, scenarioRepo, tempDir, VALID_HANDOFF, writeFiles } from './helpers.ts';
@@ -64,6 +51,9 @@ describe('config', () => {
       assert.equal(loaded.path, null);
       assert.equal(loaded.config.directory, '.handoff');
       assert.equal(loaded.config.version, 1);
+      assert.deepEqual(loaded.ignoredFields, []);
+      assert.equal(Object.hasOwn(loaded.config, 'channels'), false);
+      assert.equal(Object.hasOwn(loaded.config, 'routes'), false);
     } finally {
       removeDir(dir);
     }
@@ -126,6 +116,103 @@ describe('config', () => {
     try {
       writeConfig(dir, { ...defaultConfig('x'), directory: 'docs/handoffs' });
       assert.equal(handoffDirectory(loadConfig(dir)), join(dir, 'docs/handoffs'));
+    } finally {
+      removeDir(dir);
+    }
+  });
+
+  it('ignores legacy delivery settings while preserving them and unknown user fields on write', () => {
+    const dir = tempDir();
+    const legacy = {
+      channels: { email: { to: 'team@example.com', label: 'Team' } },
+      routes: { mobile: ['email'] },
+      teamExtension: { owner: 'backend', labels: ['reviewed'], enabled: false },
+    };
+    try {
+      writeFileSync(join(dir, CONFIG_FILENAME), JSON.stringify({
+        ...defaultConfig('backend'),
+        ...legacy,
+        context: { ...defaultConfig('backend').context, teamExtension: { style: 'compact' } },
+      }), 'utf8');
+
+      const loaded = loadConfig(dir);
+      assert.deepEqual([...loaded.ignoredFields].sort(), ['channels', 'routes']);
+      assert.equal(Object.hasOwn(loaded.config, 'channels'), false);
+      assert.equal(Object.hasOwn(loaded.config, 'routes'), false);
+      assert.equal(Object.hasOwn(loaded.config, 'teamExtension'), false);
+      loaded.config.language = 'Turkish';
+      loaded.config.targets = ['mobile'];
+      writeConfig(dir, loaded.config);
+
+      const saved = JSON.parse(readFileSync(join(dir, CONFIG_FILENAME), 'utf8'));
+      assert.deepEqual(saved.channels, legacy.channels);
+      assert.deepEqual(saved.routes, legacy.routes);
+      assert.deepEqual(saved.teamExtension, legacy.teamExtension);
+      assert.deepEqual(saved.context.teamExtension, { style: 'compact' });
+      assert.equal(saved.language, 'Turkish');
+      assert.deepEqual(saved.targets, ['mobile']);
+      const reloaded = loadConfig(dir);
+      assert.equal(reloaded.config.language, 'Turkish');
+      assert.deepEqual([...reloaded.ignoredFields].sort(), ['channels', 'routes']);
+    } finally {
+      removeDir(dir);
+    }
+  });
+
+  it('writes new configuration without delivery settings', () => {
+    const dir = tempDir();
+    try {
+      writeConfig(dir, defaultConfig('backend'));
+      const saved = JSON.parse(readFileSync(join(dir, CONFIG_FILENAME), 'utf8'));
+      assert.equal(Object.hasOwn(saved, 'channels'), false);
+      assert.equal(Object.hasOwn(saved, 'routes'), false);
+    } finally {
+      removeDir(dir);
+    }
+  });
+
+  it('preserves raw extension data when a merged configuration is written for the first time', () => {
+    const dir = tempDir();
+    const raw = {
+      project: 'backend',
+      channels: { email: { label: 'Legacy' } },
+      teamExtension: { revision: 2 },
+      context: { maxFiles: 12, teamExtension: 'brief' },
+    };
+    try {
+      const config = mergeConfig(raw, 'fallback');
+      writeConfig(dir, config);
+      const saved = JSON.parse(readFileSync(join(dir, CONFIG_FILENAME), 'utf8'));
+      assert.deepEqual(saved.channels, raw.channels);
+      assert.deepEqual(saved.teamExtension, raw.teamExtension);
+      assert.equal(saved.context.teamExtension, 'brief');
+      assert.equal(saved.context.maxFiles, 12);
+      assert.equal(config.context.maxFiles, 12);
+      assert.equal(Object.hasOwn(config, 'channels'), false);
+    } finally {
+      removeDir(dir);
+    }
+  });
+
+  it('keeps existing extension fields when callers copy the loaded configuration before updating it', () => {
+    const dir = tempDir();
+    const legacy = {
+      channels: { email: { label: 'Legacy' } },
+      routes: { mobile: 'email' },
+      teamExtension: { owner: 'backend' },
+      context: { maxFiles: 20, teamExtension: { style: 'compact' } },
+    };
+    try {
+      writeFileSync(join(dir, CONFIG_FILENAME), JSON.stringify({ project: 'backend', ...legacy }), 'utf8');
+      const config = loadConfig(dir).config;
+      writeConfig(dir, { ...config, language: 'Turkish', context: { ...config.context, maxFiles: 5 } });
+      const saved = JSON.parse(readFileSync(join(dir, CONFIG_FILENAME), 'utf8'));
+      assert.deepEqual(saved.channels, legacy.channels);
+      assert.deepEqual(saved.routes, legacy.routes);
+      assert.deepEqual(saved.teamExtension, legacy.teamExtension);
+      assert.deepEqual(saved.context.teamExtension, legacy.context.teamExtension);
+      assert.equal(saved.context.maxFiles, 5);
+      assert.equal(saved.language, 'Turkish');
     } finally {
       removeDir(dir);
     }
@@ -525,67 +612,6 @@ describe('path scoping', () => {
   });
 });
 
-describe('delivery routing', () => {
-  const config = {
-    ...defaultConfig('backend'),
-    channels: {
-      slack: { webhook: '${TEST_SLACK_HOOK}', label: '#infra' },
-      whatsapp: { to: '+905551112233' },
-    },
-    routes: { devops: ['slack'], default: ['whatsapp'] },
-  };
-
-  it('expands an environment variable rather than storing the secret', () => {
-    const settings = resolveChannelSettings(config.channels.slack, {
-      TEST_SLACK_HOOK: 'https://hooks.slack.com/services/x',
-    });
-    assert.equal(settings.webhook, 'https://hooks.slack.com/services/x');
-  });
-
-  it('drops a value whose variable is unset, and names the variable', () => {
-    // Passing `${VAR}` on as the webhook made the channel look configured and then fail
-    // with "must be an https URL", which pointed at the wrong problem entirely.
-    const raw = config.channels.slack;
-    const settings = resolveChannelSettings(raw, {});
-    assert.equal(settings.webhook, undefined);
-    assert.ok(hasUnresolvedEnv(raw?.webhook ?? ''));
-    assert.ok((settings.unresolved ?? []).length > 0);
-  });
-
-  it('reports a webhook written literally into the config', () => {
-    assert.deepEqual(literalSecrets({ slack: { webhook: 'https://hooks.slack.com/x' } }), ['slack']);
-    assert.deepEqual(literalSecrets(config.channels), []);
-  });
-
-  it('routes a target to its configured channel', () => {
-    assert.deepEqual(routesFor(config.routes, config.channels, ['devops']), ['slack']);
-  });
-
-  it('falls back to the default route for an unlisted target', () => {
-    assert.deepEqual(routesFor(config.routes, config.channels, ['mobile']), ['whatsapp']);
-  });
-
-  it('marks the routed channel and explains what blocks the others', () => {
-    const options = deliveryOptions(config, ['devops'], { TEST_SLACK_HOOK: 'https://hooks.slack.com/x' });
-    const slack = options.find((option) => option.id === 'slack');
-    assert.equal(slack?.routed, true);
-    assert.equal(slack?.available, true);
-    assert.equal(slack?.label, '#infra');
-    assert.equal(options[0]?.id, 'slack', 'the routed channel should come first');
-
-    const discord = options.find((option) => option.id === 'discord');
-    assert.equal(discord?.available, false);
-    assert.match(discord?.blockedBy ?? '', /channels\.discord\.webhook/);
-  });
-
-  it('keeps the local channels usable with no configuration at all', () => {
-    const options = deliveryOptions(defaultConfig('x'), []);
-    for (const id of ['file', 'stdout']) {
-      assert.equal(options.find((option) => option.id === id)?.available, true, id);
-    }
-  });
-});
-
 describe('the ask policy', () => {
   it('defaults to asking only when something is unclear', () => {
     assert.equal(defaultConfig('x').ask, 'when-unclear');
@@ -598,287 +624,6 @@ describe('the ask policy', () => {
   it('tells the agent in the brief which policy is in force', () => {
     const brief = renderBrief(collectChangeContext({ cwd: repo, loaded: loadConfig(repo) }));
     assert.match(brief, /when to ask: decide what you can/);
-  });
-});
-
-describe('availability probes stay cheap', () => {
-  it('finds an executable on PATH without spawning a process', () => {
-    // Probing with spawnSync turned a 9-second suite into a 34-minute one, because
-    // availability is checked every time delivery options are listed.
-    assert.ok(which('node'), 'node should be on PATH');
-    assert.equal(which('definitely-not-a-real-binary-xyz'), null);
-  });
-
-  it('answers repeatedly without getting slower', () => {
-    clearWhichCache();
-    const started = Date.now();
-    for (let i = 0; i < 200; i++) deliveryOptions(defaultConfig('x'), ['mobile']);
-    const elapsed = Date.now() - started;
-    assert.ok(elapsed < 1000, `200 lookups took ${elapsed}ms; something is spawning again`);
-  });
-});
-
-describe('compose channels', () => {
-  const handoff = parseHandoff(VALID_HANDOFF);
-  const base = { markdown: VALID_HANDOFF, handoff, cwd: '/tmp', open: false as const };
-
-  it('opens the contact picker when no number is configured', async () => {
-    // WhatsApp documents `wa.me/?text=` as the form that shows a contact list. Keeping a
-    // directory of colleagues' phone numbers in a config file is the thing this replaces.
-    const result = await whatsappChannel.send({ ...base });
-    assert.equal(result.ok, true, result.message);
-    assert.match(result.url ?? '', /^https:\/\/wa\.me\/\?text=/);
-    assert.ok(!/\/\d/.test((result.url ?? '').split('?')[0] ?? ''), 'no number in the path');
-    assert.match(result.destination, /you pick/i);
-  });
-
-  it('tells the picker user they can send to several people', async () => {
-    const result = await whatsappChannel.send({ ...base, link: 'none' });
-    assert.equal(result.ok, true);
-    assert.match(result.nextStep ?? '', /Attach|drag/i);
-  });
-
-  it('still honours a number when one is given, as a shortcut', async () => {
-    const result = await whatsappChannel.send({ ...base, destination: '+905551112233' });
-    assert.equal(result.ok, true);
-    assert.match(result.url ?? '', /905551112233/);
-  });
-
-  it('refuses a number too short to be real', async () => {
-    const result = await whatsappChannel.send({ ...base, destination: '+90' });
-    assert.equal(result.ok, false);
-    assert.match(result.message, /international format/);
-    assert.match(result.message, /pick the chat in WhatsApp/);
-  });
-
-  it('keeps the prefilled text short enough for a chat box', async () => {
-    const result = await whatsappChannel.send({ ...base, destination: '+905551112233' });
-    assert.equal(result.ok, true, result.message);
-    // The old version produced a 1301-character URL stuffed with markdown.
-    assert.ok((result.url ?? '').length < 400, `url was ${(result.url ?? '').length} chars`);
-    // Either form is correct: the native scheme when WhatsApp is installed, wa.me when not.
-    assert.match(
-      result.url ?? '',
-      /^(whatsapp:\/\/send\?phone=905551112233&|https:\/\/wa\.me\/905551112233\?)text=/,
-    );
-  });
-
-  it('never claims an attachment it did not make', async () => {
-    // The first version said "Full details in the file attached" while attaching nothing.
-    // A recipient acts on that sentence, so it has to be true.
-    const result = await whatsappChannel.send({ ...base, destination: '+905551112233' });
-    const text = decodeURIComponent((result.url ?? '').split('text=')[1] ?? '');
-    assert.match(text, /Handoff for web/);
-    assert.doesNotMatch(text, /Sending the file next/);
-    assert.ok(!/attached/i.test(text), 'must not claim an attachment');
-    assert.ok(!text.includes('##'), 'no markdown headings in a chat message');
-  });
-
-  it('tells the developer what is left to do', async () => {
-    const result = await whatsappChannel.send({
-      ...base,
-      destination: '+905551112233',
-      sourcePath: '/tmp/HANDOFF.md',
-    });
-    assert.match(result.nextStep ?? '', /Attach|drag/i);
-  });
-
-  it('reports the reason when a link was asked for and could not be made', async () => {
-    const result = await whatsappChannel.send({
-      ...base,
-      destination: '+905551112233',
-      link: 'gist',
-      // No sourcePath and open:false keeps this off the network; the gist path is
-      // exercised for real in the CLI, not here.
-    });
-    assert.equal(result.ok, true);
-  });
-
-  it('builds a mailto with a subject and a body', async () => {
-    const result = await emailChannel.send({ ...base, destination: 'team@example.com' });
-    assert.equal(result.ok, true);
-    assert.match(result.url ?? '', /^mailto:team%40example\.com\?subject=/);
-    assert.match(decodeURIComponent(result.url ?? ''), /Handoff: Rate limiting/);
-  });
-
-  it('uses one email summary and exports the complete Markdown for manual attachment', async () => {
-    const result = await emailChannel.send({ ...base });
-    const body = new URL(result.url ?? '').searchParams.get('body') ?? '';
-    const summary = handoff.sections.find((section) => section.title === 'Summary')?.content.trim() ?? '';
-    assert.ok(summary);
-    assert.equal(body.split(summary).length - 1, 1, 'the summary is repeated');
-    assert.match(body, /Required actions:/);
-    assert.doesNotMatch(body, /Sending the file next|\*Rate limiting\*/);
-    assert.ok(result.exportedPath);
-    assert.equal(readFileSync(result.exportedPath, 'utf8'), VALID_HANDOFF);
-    assert.ok(!body.includes(result.exportedPath), 'the recipient got a sender-only local path');
-    assert.match(result.nextStep ?? '', /No file is attached automatically/);
-    assert.match(result.nextStep ?? '', /Choose a recipient/);
-    assert.equal(result.composed, true);
-    assert.equal(result.opened, false);
-  });
-
-  it('preserves a configured email template without appending a duplicate summary', async () => {
-    const result = await emailChannel.send({
-      ...base,
-      settings: { template: 'For {who}: {title}\n{summary}\nLiteral: $&' },
-    });
-    const body = new URL(result.url ?? '').searchParams.get('body') ?? '';
-    const summary = handoff.sections.find((section) => section.title === 'Summary')?.content.trim() ?? '';
-    assert.ok(body.startsWith(`For ${handoff.frontmatter.targets.join('/')}: ${handoff.title}`));
-    assert.equal(body.split(summary).length - 1, 1);
-    assert.match(body, /Literal: \$&/);
-    assert.match(body, /Required actions:/);
-    assert.equal(readFileSync(result.exportedPath ?? '', 'utf8'), VALID_HANDOFF);
-  });
-
-  it('stops before composing when the Markdown export cannot be written', async () => {
-    const dir = tempDir();
-    try {
-      const blocked = join(dir, 'blocked');
-      writeFileSync(blocked, 'keep this file\n');
-      const result = await emailChannel.send({ ...base, stagingDir: blocked });
-      assert.equal(result.ok, false);
-      assert.equal(result.url, undefined);
-      assert.equal(result.exportedPath, undefined);
-      assert.match(result.message, /No email draft was opened/);
-      assert.equal(readFileSync(blocked, 'utf8'), 'keep this file\n');
-    } finally {
-      removeDir(dir);
-    }
-  });
-
-  it('never opens anything when open is false', async () => {
-    // The suite must not launch a browser or a mail client.
-    const result = await emailChannel.send({ ...base, destination: 'x@example.com' });
-    assert.match(result.message, /Open this to compose/);
-  });
-});
-
-describe('the chat opener tells the truth about delivery', () => {
-  const handoff = parseHandoff(VALID_HANDOFF);
-  const context = { markdown: VALID_HANDOFF, handoff, cwd: '/tmp', open: false as const };
-
-  it('promises a link when there is one', () => {
-    const text = chatOpener(context, 'https://gist.github.com/x/abc');
-    assert.match(text, /Read it here: https:\/\/gist\.github\.com\/x\/abc/);
-    assert.ok(!/attached/i.test(text));
-  });
-
-  it('leaves manual attachment instructions to the sender when there is no link', () => {
-    const text = chatOpener(context);
-    assert.doesNotMatch(text, /Sending the file next/);
-    assert.ok(!/attached/i.test(text));
-  });
-
-  it('flags a breaking change in the opening line', () => {
-    const breaking = parseHandoff(
-      VALID_HANDOFF.replace('breaking: false', 'breaking: true').replace(
-        '## Verification',
-        '## Breaking Changes\n\nIt breaks.\n\n## Verification',
-      ),
-    );
-    assert.match(chatOpener({ ...context, handoff: breaking }), /Breaking change/);
-  });
-
-  it('stays short enough for a chat prefill', () => {
-    const long = parseHandoff(VALID_HANDOFF.replace('title: Rate limiting on /search', `title: ${'x'.repeat(400)}`));
-    assert.ok(chatOpener({ ...context, handoff: long }).length <= 320);
-  });
-});
-
-describe('opening the right thing', () => {
-  it('prefers a native app over a web detour when one is installed', () => {
-    // `hasUrlHandler` is what decides between whatsapp:// and wa.me. It must not claim a
-    // handler for a scheme nothing owns, or every send would open nothing.
-    assert.equal(hasUrlHandler('definitelynotascheme12345'), false);
-  });
-});
-
-describe('link visibility', () => {
-  /** A repo whose handoff is committed and present at its tracking ref. */
-  function pushedRepo(): { dir: string; handoffPath: string } {
-    const dir = tempDir();
-    initRepo(dir);
-    git(dir, ['remote', 'add', 'origin', 'git@github.com:acme/backend.git']);
-    writeFiles(dir, { '.handoff/x/HANDOFF.md': VALID_HANDOFF });
-    commitAll(dir, 'add handoff');
-    // Stand in for a push: point the tracking ref at the commit holding the file.
-    git(dir, ['update-ref', 'refs/remotes/origin/main', 'HEAD']);
-    return { dir, handoffPath: join(dir, '.handoff/x/HANDOFF.md') };
-  }
-
-  it('links into the repository, and says who that means', () => {
-    const { dir, handoffPath } = pushedRepo();
-    try {
-      const result = repoLink({
-        markdown: VALID_HANDOFF,
-        handoff: parseHandoff(VALID_HANDOFF),
-        cwd: dir,
-        sourcePath: handoffPath,
-      });
-      assert.equal(
-        result.url,
-        'https://github.com/acme/backend/blob/main/.handoff/x/HANDOFF.md',
-      );
-      assert.match(result.visibility ?? '', /whoever can read acme\/backend/);
-    } finally {
-      removeDir(dir);
-    }
-  });
-
-  it('refuses a link that would 404 rather than handing one over', () => {
-    const dir = tempDir();
-    try {
-      initRepo(dir);
-      git(dir, ['remote', 'add', 'origin', 'git@github.com:acme/backend.git']);
-      writeFiles(dir, { '.handoff/x/HANDOFF.md': VALID_HANDOFF });
-      commitAll(dir, 'add handoff');
-      // No tracking ref: nothing has been pushed.
-      const result = repoLink({
-        markdown: VALID_HANDOFF,
-        handoff: parseHandoff(VALID_HANDOFF),
-        cwd: dir,
-        sourcePath: join(dir, '.handoff/x/HANDOFF.md'),
-      });
-      assert.equal(result.url, undefined);
-      assert.match(result.error ?? '', /has not been pushed|is not in origin/);
-    } finally {
-      removeDir(dir);
-    }
-  });
-
-  it('says a gist is readable by anyone with the link, not that it is private', async () => {
-    // GitHub's own docs: "Secret gists aren't private." The word must not do the lying.
-    const { dir, handoffPath } = pushedRepo();
-    try {
-      const result = await shareLink({
-        markdown: VALID_HANDOFF,
-        handoff: parseHandoff(VALID_HANDOFF),
-        cwd: dir,
-        sourcePath: handoffPath,
-        link: 'repo',
-      });
-      assert.ok(!/private/i.test(result.visibility ?? ''), 'do not claim privacy');
-      assert.match(result.visibility ?? '', /whoever can read/);
-    } finally {
-      removeDir(dir);
-    }
-  });
-
-  it('puts no link in the message when the mode is none', async () => {
-    const dir = tempDir();
-    try {
-      const result = await shareLink({
-        markdown: VALID_HANDOFF,
-        handoff: parseHandoff(VALID_HANDOFF),
-        cwd: dir,
-        link: 'none',
-      });
-      assert.deepEqual(result, {});
-    } finally {
-      removeDir(dir);
-    }
   });
 });
 
@@ -944,125 +689,7 @@ describe('HandoffStore and ids written by someone else', () => {
   });
 });
 
-describe('the stdout channel', () => {
-  it('writes to the sink it was given rather than to this process', async () => {
-    // The MCP server owns file descriptor 1: a channel that reaches for process.stdout on
-    // its own cannot be reused there.
-    const written: string[] = [];
-    const channel = createStdoutChannel((text) => written.push(text));
-    const result = await channel.send({
-      markdown: '# handoff\n',
-      handoff: parseHandoff(VALID_HANDOFF),
-      cwd: process.cwd(),
-    });
-
-    assert.equal(result.ok, true);
-    assert.deepEqual(written, ['# handoff\n']);
-  });
-});
-
-describe('the trello channel', () => {
-  const handoff = parseHandoff(VALID_HANDOFF);
-  const base = { markdown: VALID_HANDOFF, handoff, cwd: '/tmp', open: false as const };
-
-  it('reports when settings are missing', () => {
-    assert.equal(trelloChannel.isAvailable(), false);
-    assert.equal(trelloChannel.isAvailable({}), false);
-    assert.equal(trelloChannel.isAvailable({ webhook: 'https://example.com/webhook' }), true);
-    assert.equal(trelloChannel.isAvailable({ to: 'board@boards.trello.com' }), true);
-  });
-
-  it('creates an email-to-board draft when given a board address', async () => {
-    const result = await trelloChannel.send({
-      ...base,
-      settings: { to: 'myboard@boards.trello.com', label: 'Trello Board' },
-    });
-    assert.equal(result.ok, true);
-    assert.match(result.url ?? '', /^mailto:myboard%40boards\.trello\.com/);
-    assert.match(result.destination, /Trello Board/);
-  });
-});
-
-
 describe('release hardening', () => {
-  const handoff = parseHandoff(VALID_HANDOFF);
-  const base = { markdown: VALID_HANDOFF, handoff, cwd: '/tmp', open: false as const };
-
-  it('never shortens the link in an opening line, however long the title', () => {
-    const long = parseHandoff(VALID_HANDOFF.replace('title: Rate limiting on /search', `title: ${'Long title '.repeat(40)}`));
-    const url = 'https://github.com/acme/backend/blob/feature/very-long-branch-name/.handoff/2026-08-28-rate-limiting-on-search/HANDOFF.md';
-    const text = chatOpener({ ...base, handoff: long }, url);
-    assert.ok(text.endsWith(url), text);
-  });
-
-  it('keeps the link whole in a configured template too', () => {
-    const url = 'https://gitlab.com/acme/backend/-/blob/main/.handoff/x/HANDOFF.md';
-    const text = chatOpener(
-      { ...base, settings: { template: `Hi! {title} — {summary}. Details: {url}` } },
-      url,
-    );
-    assert.ok(text.includes(url), text);
-    assert.ok(text.startsWith('Hi! '));
-  });
-
-  function pushedRepoAt(remote: string): { dir: string; handoffPath: string } {
-    const dir = tempDir();
-    initRepo(dir);
-    git(dir, ['remote', 'add', 'origin', remote]);
-    writeFiles(dir, { '.handoff/x/HANDOFF.md': VALID_HANDOFF });
-    commitAll(dir, 'add handoff');
-    git(dir, ['update-ref', 'refs/remotes/origin/main', 'HEAD']);
-    return { dir, handoffPath: join(dir, '.handoff/x/HANDOFF.md') };
-  }
-
-  it('builds a GitLab-shaped link for a GitLab remote', () => {
-    const { dir, handoffPath } = pushedRepoAt('git@gitlab.com:acme/platform/backend.git');
-    try {
-      const result = repoLink({ ...base, cwd: dir, sourcePath: handoffPath });
-      assert.equal(result.url, 'https://gitlab.com/acme/platform/backend/-/blob/main/.handoff/x/HANDOFF.md');
-      assert.match(result.visibility ?? '', /on gitlab\.com/);
-    } finally {
-      removeDir(dir);
-    }
-  });
-
-  it('refuses a link for a forge whose URL shape it does not know, rather than guessing GitHub', () => {
-    const { dir, handoffPath } = pushedRepoAt('https://git.internal.example.com/acme/backend.git');
-    try {
-      const result = repoLink({ ...base, cwd: dir, sourcePath: handoffPath });
-      assert.equal(result.url, undefined);
-      assert.match(result.error ?? '', /git\.internal\.example\.com is none of them/);
-    } finally {
-      removeDir(dir);
-    }
-  });
-
-  it('names the unset variable instead of calling a missing webhook "not https"', () => {
-    const config = defaultConfig('svc');
-    config.channels = { slack: { webhook: '${HANDOFF_TEST_UNSET_WEBHOOK}' } };
-    const slack = deliveryOptions(config, [], {}).find((option) => option.id === 'slack');
-    assert.equal(slack?.available, false);
-    assert.match(slack?.blockedBy ?? '', /HANDOFF_TEST_UNSET_WEBHOOK/);
-  });
-
-  it('keeps a route to whatsapp even with no whatsapp settings', () => {
-    assert.deepEqual(routesFor({ mobile: ['whatsapp'] }, {}, ['mobile']), ['whatsapp']);
-  });
-
-  it('reports routes to unknown or unconfigured channels, literal webhooks and unset variables', () => {
-    const config = defaultConfig('svc');
-    config.routes = { mobile: ['slak'], web: ['discord'] };
-    config.channels = {
-      slack: { webhook: 'https://hooks.slack.com/services/T0/B0/abcdefghij' },
-      trello: { webhook: '${HANDOFF_TEST_UNSET_TRELLO}' },
-    };
-    const problems = configProblems(config, {}).join('\n');
-    assert.match(problems, /"slak", which is not a channel/);
-    assert.match(problems, /routes\.web names "discord", but channels\.discord is not configured/);
-    assert.match(problems, /channels\.slack\.webhook is written into handoff\.config\.json/);
-    assert.match(problems, /HANDOFF_TEST_UNSET_TRELLO/);
-  });
-
   it('finds a password in .env shape, and leaves prose about secrets alone', () => {
     assert.equal(findSecrets('DB_PASSWORD=hunter2-prod-9f8e').length, 1);
     assert.equal(findSecrets('STRIPE_WEBHOOK_SECRET=whsec_0123456789abcdef').length, 1);
@@ -1091,62 +718,6 @@ describe('release hardening', () => {
     assert.ok(validateHandoff(composed).warnings.some((issue) => issue.code === 'too-long'));
   });
 
-  it('refuses to overwrite a file that is not a copy of the same handoff', async () => {
-    const dir = tempDir();
-    try {
-      writeFileSync(join(dir, 'app.ts'), 'export const keep = true;\n');
-      const result = await filesystemChannel.send({ ...base, cwd: dir, destination: 'app.ts' });
-      assert.equal(result.ok, false);
-      assert.equal(readFileSync(join(dir, 'app.ts'), 'utf8'), 'export const keep = true;\n');
-
-      const first = await filesystemChannel.send({ ...base, cwd: dir, destination: 'copy.md' });
-      const again = await filesystemChannel.send({ ...base, cwd: dir, destination: 'copy.md' });
-      assert.equal(first.ok, true);
-      assert.equal(again.ok, true, 'refreshing a copy of the same handoff is fine');
-    } finally {
-      removeDir(dir);
-    }
-  });
-
-  it('stages the attachment under its id, fresh on every send, outside the repository', async () => {
-    const first = await emailChannel.send({ ...base, sourcePath: '/nowhere/HANDOFF.md' });
-    const again = await emailChannel.send({ ...base, sourcePath: '/nowhere/HANDOFF.md' });
-    const staged = (result: { nextStep?: string | undefined }): string =>
-      /Attach (.+) before sending/.exec(result.nextStep ?? '')?.[1] ?? '';
-    assert.ok(staged(first).startsWith(tmpdir()), staged(first));
-    assert.ok(staged(first).endsWith(`${handoff.frontmatter.id}.md`));
-    assert.equal(readFileSync(staged(first), 'utf8'), VALID_HANDOFF);
-    // A directory of its own each time, so nothing planted in advance is ever written through.
-    assert.notEqual(staged(first), staged(again));
-    assert.equal(first.composed, true);
-  });
-
-  it('never posts the sender\'s absolute path to Slack', async () => {
-    const original = globalThis.fetch;
-    let posted = '';
-    globalThis.fetch = (async (_url: unknown, init?: { body?: unknown }) => {
-      posted = String(init?.body ?? '');
-      return new Response('ok');
-    }) as typeof fetch;
-    const dir = tempDir();
-    try {
-      initRepo(dir);
-      writeFiles(dir, { '.handoff/x/HANDOFF.md': VALID_HANDOFF });
-      const result = await slackChannel.send({
-        ...base,
-        cwd: dir,
-        sourcePath: join(dir, '.handoff', 'x', 'HANDOFF.md'),
-        settings: { webhook: 'https://hooks.slack.com/services/T0/B0/test' },
-      });
-      assert.equal(result.ok, true);
-      assert.ok(!posted.includes(dir) && !posted.includes(tmpdir()), 'the local path leaked into the message');
-      assert.match(posted, /\.handoff\/x\/HANDOFF\.md/);
-    } finally {
-      globalThis.fetch = original;
-      removeDir(dir);
-    }
-  });
-
   it('warns about uncommitted work a branch revision leaves out, and ignores its own handoffs', () => {
     const dir = tempDir();
     try {
@@ -1172,9 +743,6 @@ describe('release hardening', () => {
 });
 
 describe('review fixes', () => {
-  const handoff = parseHandoff(VALID_HANDOFF);
-  const base = { markdown: VALID_HANDOFF, handoff, cwd: '/tmp', open: false as const };
-
   it('finds secrets in JSON, webhooks, newer token formats, and after a placeholder on the same line', () => {
     const lines = [
       '{ "password": "Tr0ub4dor&3horse" }',
@@ -1190,7 +758,7 @@ describe('review fixes', () => {
     for (const line of lines) assert.equal(findSecrets(line).length, 1, line);
   });
 
-  it('leaves ordinary configuration prose alone, because a false positive blocks delivery', () => {
+  it('leaves ordinary configuration prose alone, because a false positive blocks handoff validation', () => {
     for (const line of [
       'Mobile must set `AUTH_TOKEN_STORAGE=keychain` before release.',
       'We changed `ACCESS_TOKEN_TTL=15minutes` to 5.',
@@ -1198,35 +766,6 @@ describe('review fixes', () => {
       'REFRESH_TOKEN_TTL=86400000',
     ]) {
       assert.equal(findSecrets(line).length, 0, line);
-    }
-  });
-
-  it('adds the link to a template that leaves {url} out', () => {
-    const url = 'https://github.com/acme/backend/blob/main/.handoff/x/HANDOFF.md';
-    const text = chatOpener({ ...base, settings: { template: 'Hi {who}, new handoff: {title}' } }, url);
-    assert.ok(text.endsWith(url), text);
-  });
-
-  it("fills a template without reading $& or $' in a title as a replacement pattern", () => {
-    // A function here too: as a replacement string, `$&` and `$'` would splice the fixture.
-    const dollar = parseHandoff(VALID_HANDOFF.replace('title: Rate limiting on /search', () => `title: "Price is $& and $' now"`));
-    assert.equal(chatOpener({ ...base, handoff: dollar, settings: { template: 'New: {title}' } }), "New: Price is $& and $' now");
-  });
-
-  it('links to the branch as the remote names it, not as it is called locally', () => {
-    const dir = tempDir();
-    try {
-      initRepo(dir);
-      git(dir, ['remote', 'add', 'origin', 'git@github.com:acme/backend.git']);
-      writeFiles(dir, { '.handoff/x/HANDOFF.md': VALID_HANDOFF });
-      commitAll(dir, 'add handoff');
-      git(dir, ['update-ref', 'refs/remotes/origin/feature/auth-refresh', 'HEAD']);
-      git(dir, ['checkout', '-q', '-b', 'wip']);
-      git(dir, ['branch', '--set-upstream-to=origin/feature/auth-refresh', 'wip']);
-      const result = repoLink({ ...base, cwd: dir, sourcePath: join(dir, '.handoff/x/HANDOFF.md') });
-      assert.equal(result.url, 'https://github.com/acme/backend/blob/feature/auth-refresh/.handoff/x/HANDOFF.md');
-    } finally {
-      removeDir(dir);
     }
   });
 
@@ -1319,93 +858,6 @@ describe('review fixes', () => {
 });
 
 describe('re-review fixes', () => {
-  const handoff = parseHandoff(VALID_HANDOFF);
-  const base = { markdown: VALID_HANDOFF, handoff, cwd: '/tmp', open: false as const };
-
-  /** Stand in for the gh CLI, so a gist "upload" never leaves the machine. */
-  async function withFakeGh<T>(run: () => Promise<T>): Promise<T> {
-    const bin = tempDir();
-    writeFileSync(
-      join(bin, 'gh'),
-      '#!/bin/sh\ncat >/dev/null\necho https://gist.github.com/someone/0123456789abcdef\n',
-      { mode: 0o755 },
-    );
-    const original = process.env['PATH'];
-    process.env['PATH'] = `${bin}${delimiter}${original ?? ''}`;
-    clearWhichCache();
-    try {
-      return await run();
-    } finally {
-      if (original === undefined) delete process.env['PATH'];
-      else process.env['PATH'] = original;
-      clearWhichCache();
-      removeDir(bin);
-    }
-  }
-
-  it('says before and after a compose send that a gist link uploads the handoff', async () => {
-    const config = defaultConfig('svc');
-    config.channels = { email: { link: 'gist' } };
-    const options = deliveryOptions(config, [], {});
-    assert.match(options.find((option) => option.id === 'email')?.uploads ?? '', /secret gist/);
-    assert.equal(options.find((option) => option.id === 'whatsapp')?.uploads, undefined);
-
-    const result = await withFakeGh(() => emailChannel.send({ ...base, link: 'gist' }));
-    assert.equal(result.ok, true, result.message);
-    assert.equal(result.uploaded, 'a secret gist on GitHub');
-    assert.equal(result.shareUrl, 'https://gist.github.com/someone/0123456789abcdef');
-    assert.match(result.shareVisibility ?? '', /anyone with the link/);
-  });
-
-  it('stages the attachment in the outbox it is given, out of git, replacing a planted symlink', async () => {
-    const dir = tempDir();
-    try {
-      initRepo(dir);
-      writeFiles(dir, { 'keep.txt': 'keep\n' });
-      commitAll(dir, 'base');
-      const outbox = join(dir, '.handoff', 'outbox');
-      mkdirSync(outbox, { recursive: true });
-      const staged = join(outbox, `${handoff.frontmatter.id}.md`);
-      symlinkSync(join(dir, 'keep.txt'), staged);
-
-      const result = await emailChannel.send({ ...base, cwd: dir, stagingDir: outbox });
-      assert.ok(result.nextStep?.includes(staged), result.nextStep);
-      assert.equal(readFileSync(join(dir, 'keep.txt'), 'utf8'), 'keep\n', 'wrote through the symlink');
-      assert.equal(lstatSync(staged).isSymbolicLink(), false);
-      assert.equal(readFileSync(staged, 'utf8'), VALID_HANDOFF);
-      assert.equal(git(dir, ['status', '--porcelain', '--untracked-files=all']).trim(), '', 'the outbox would be committed');
-    } finally {
-      removeDir(dir);
-    }
-  });
-
-  it('puts a file copy with nowhere named in the outbox, never through a symlink', async () => {
-    const dir = tempDir();
-    try {
-      initRepo(dir);
-      writeFiles(dir, { 'keep.txt': 'keep\n' });
-      commitAll(dir, 'base');
-      const outbox = join(dir, '.handoff', 'outbox');
-      const first = await filesystemChannel.send({ ...base, cwd: dir, stagingDir: outbox });
-      assert.equal(first.ok, true, first.message);
-      assert.equal(first.destination, join(outbox, `${handoff.frontmatter.id}.md`));
-      assert.equal(git(dir, ['status', '--porcelain', '--untracked-files=all']).trim(), '', 'the copy would be committed');
-
-      const link = join(dir, 'linked.md');
-      symlinkSync(join(dir, 'missing-target.md'), link);
-      const refused = await filesystemChannel.send({ ...base, cwd: dir, destination: 'linked.md' });
-      assert.equal(refused.ok, false);
-      assert.equal(existsSync(join(dir, 'missing-target.md')), false, 'wrote through the symlink');
-    } finally {
-      removeDir(dir);
-    }
-  });
-
-  it('says a compose channel only printed its link when nothing was opened', async () => {
-    const result = await emailChannel.send({ ...base, sourcePath: '/nowhere/HANDOFF.md' });
-    assert.equal(result.opened, false);
-  });
-
   it('lists handoffs already written at this commit, and leaves old ones on other commits out', () => {
     const dir = tempDir();
     try {
@@ -1429,11 +881,6 @@ describe('re-review fixes', () => {
     } finally {
       removeDir(dir);
     }
-  });
-
-  it('does not ask which app handles whatsapp: when it is not going to open anything', async () => {
-    const result = await whatsappChannel.send({ ...base, destination: '+905551112233' });
-    assert.ok(result.url?.startsWith('https://wa.me/905551112233?text='), result.url);
   });
 
   it('describes the whole history when it is shorter than the commits asked for', () => {

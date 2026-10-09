@@ -2,7 +2,7 @@
 
 Agent-independent core of [Agents Handoff](https://github.com/Ryujin-Labs/agents-handoff):
 the `HANDOFF.md` schema, Markdown parsing and serialization, git inspection, context
-collectors, validation, storage, and delivery channels.
+collectors, validation, storage, and full Markdown export.
 
 **No model calls.** Everything here is deterministic and testable. The reasoning — what a
 change means to another team, whether it breaks them, what they must do — belongs to the

@@ -30,8 +30,8 @@ const tabs = [
     id: 'cli',
     label: 'CLI',
     lang: 'sh',
-    code: 'npm i -g ryujin-handoff\nhandoff init     # set up this repository\nhandoff          # an interactive menu',
-    note: 'For humans and scripts. Interactive in a terminal, never when an agent drives it.',
+    code: 'npm i -g ryujin-handoff\nhandoff init     # configure targets and language\nhandoff export <file|id> --out ./HANDOFF.md',
+    note: 'For humans and scripts. Export a reviewed handoff as a complete Markdown file; add --json for paths in machine-readable output.',
   },
 ] as const;
 

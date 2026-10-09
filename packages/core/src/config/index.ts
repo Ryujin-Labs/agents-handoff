@@ -2,7 +2,6 @@ import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { basename, isAbsolute, join, resolve } from 'node:path';
 import { CONFIG_FILENAME, DEFAULT_DIRECTORY } from '../constants.ts';
 import { findUp, readJsonIfExists } from '../util/fs.ts';
-import type { ChannelSettingsMap, RouteMap } from './channels.ts';
 
 /**
  * When a generating agent should stop and ask rather than decide.
@@ -56,10 +55,6 @@ export interface HandoffConfig {
   language: string | null;
   /** How readily a generating agent should check in. */
   ask: AskPolicy;
-  /** Per-channel settings: webhook URLs, default recipients. */
-  channels: ChannelSettingsMap;
-  /** Which channels reach which target. `default` covers the rest. */
-  routes: RouteMap;
   includeGitContext: boolean;
   includeTests: boolean;
   context: ContextConfig;
@@ -73,6 +68,8 @@ export interface LoadedConfig {
   path: string | null;
   /** False when no config file was found and defaults were substituted. */
   exists: boolean;
+  /** Legacy configuration retained on disk but no longer used by the product. */
+  ignoredFields: string[];
 }
 
 export function defaultConfig(project: string): HandoffConfig {
@@ -86,8 +83,6 @@ export function defaultConfig(project: string): HandoffConfig {
     targets: [],
     language: null,
     ask: 'when-unclear',
-    channels: {},
-    routes: {},
     includeGitContext: true,
     includeTests: true,
     context: { maxFiles: 60, maxCommits: 20, disabledCollectors: [] },
@@ -111,17 +106,24 @@ export function loadConfig(cwd: string): LoadedConfig {
       root: fallbackRoot,
       path: null,
       exists: false,
+      ignoredFields: [],
     };
   }
   const path = join(root, CONFIG_FILENAME);
-  const raw = readJsonIfExists<Partial<HandoffConfig>>(path) ?? {};
-  return { config: mergeConfig(raw, basename(root)), root, path, exists: true };
+  const raw = readJsonIfExists<Record<string, unknown>>(path) ?? {};
+  const ignoredFields = isRecord(raw) ? ['channels', 'routes'].filter((key) => Object.hasOwn(raw, key)) : [];
+  return { config: mergeConfig(raw, basename(root)), root, path, exists: true, ignoredFields };
 }
 
-export function mergeConfig(raw: Partial<HandoffConfig>, projectFallback: string): HandoffConfig {
+// Retain unknown and legacy data outside the active typed configuration. Loading and
+// updating a project must not erase fields another version or tool put in its file.
+const preservedConfig = new WeakMap<HandoffConfig, Record<string, unknown>>();
+
+export function mergeConfig(input: Partial<HandoffConfig> | Record<string, unknown>, projectFallback: string): HandoffConfig {
+  const raw = (isRecord(input) ? input : {}) as Partial<HandoffConfig>;
   const base = defaultConfig(projectFallback);
-  const context = (raw.context ?? {}) as Partial<ContextConfig>;
-  return {
+  const context = (isRecord(raw.context) ? raw.context : {}) as Partial<ContextConfig>;
+  const config: HandoffConfig = {
     version: typeof raw.version === 'number' ? raw.version : base.version,
     directory: typeof raw.directory === 'string' && raw.directory ? raw.directory : base.directory,
     gitignore: typeof raw.gitignore === 'boolean' ? raw.gitignore : base.gitignore,
@@ -131,8 +133,6 @@ export function mergeConfig(raw: Partial<HandoffConfig>, projectFallback: string
     targets: Array.isArray(raw.targets) ? raw.targets.filter((t) => typeof t === 'string') : base.targets,
     language: typeof raw.language === 'string' && raw.language.trim() ? raw.language.trim() : null,
     ask: ASK_POLICIES.includes(raw.ask as AskPolicy) ? (raw.ask as AskPolicy) : base.ask,
-    channels: isRecord(raw.channels) ? (raw.channels as ChannelSettingsMap) : base.channels,
-    routes: toRoutes(raw.routes) ?? base.routes,
     includeGitContext:
       typeof raw.includeGitContext === 'boolean' ? raw.includeGitContext : base.includeGitContext,
     includeTests: typeof raw.includeTests === 'boolean' ? raw.includeTests : base.includeTests,
@@ -144,21 +144,12 @@ export function mergeConfig(raw: Partial<HandoffConfig>, projectFallback: string
         : [],
     },
   };
+  preservedConfig.set(config, structuredClone(raw) as Record<string, unknown>);
+  return config;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
-}
-
-/** Accept `{ mobile: ["slack"] }` and the shorthand `{ mobile: "slack" }`. */
-function toRoutes(value: unknown): RouteMap | null {
-  if (!isRecord(value)) return null;
-  const routes: RouteMap = {};
-  for (const [target, ids] of Object.entries(value)) {
-    if (typeof ids === 'string') routes[target] = [ids];
-    else if (Array.isArray(ids)) routes[target] = ids.filter((id): id is string => typeof id === 'string');
-  }
-  return routes;
 }
 
 function positive(value: unknown, fallback: number): number {
@@ -173,7 +164,20 @@ export function handoffDirectory(loaded: LoadedConfig): string {
 
 export function writeConfig(root: string, config: HandoffConfig): string {
   const path = join(root, CONFIG_FILENAME);
-  writeFileSync(path, `${JSON.stringify(config, null, 2)}\n`, 'utf8');
+  const previous = readJsonIfExists<Record<string, unknown>>(path);
+  const existing = isRecord(previous) ? previous : {};
+  const preserved = preservedConfig.get(config) ?? {};
+  const output = {
+    ...existing,
+    ...preserved,
+    ...config,
+    context: {
+      ...(isRecord(existing.context) ? existing.context : {}),
+      ...(isRecord(preserved.context) ? preserved.context : {}),
+      ...config.context,
+    },
+  };
+  writeFileSync(path, `${JSON.stringify(output, null, 2)}\n`, 'utf8');
   return path;
 }
 

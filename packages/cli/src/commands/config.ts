@@ -1,9 +1,6 @@
 import {
   BUILTIN_COLLECTORS,
   CONFIG_FILENAME,
-  configProblems,
-  deliveryOptions,
-  formatDeliveryOptions,
   ensureGitignored,
   handoffDirectory,
   loadConfig,
@@ -18,7 +15,6 @@ import { displayPath, heading, jsonOut, keyValue, out, style } from '../ui.ts';
 export const configOptions: Record<string, OptionSpec> = {
   json: { type: 'boolean', describe: 'Emit the resolved configuration as JSON' },
   collectors: { type: 'boolean', describe: 'List available context collectors' },
-  channels: { type: 'boolean', describe: 'List available delivery channels' },
   'set-project': { type: 'string', describe: 'Set the logical project name', placeholder: '<name>' },
   'set-targets': { type: 'string', describe: 'Set the known consumers', placeholder: '<a,b>' },
   'set-default-target': { type: 'string', describe: 'Set the target assumed when none is given', placeholder: '<name>' },
@@ -40,20 +36,11 @@ export async function configCommand(args: ParsedArgs, cwd: string): Promise<numb
     return 0;
   }
 
-  if (boolOption(args, 'channels')) {
-    // Judged with this project's settings: asking a channel whether it works with no
-    // settings at all reported every configured webhook as unavailable.
-    heading('Delivery channels');
-    out(formatDeliveryOptions(deliveryOptions(loaded.config, [])).replace(/^/gm, '  '));
-    printProblems(loaded.config);
-    return 0;
-  }
-
   const mutated = applyMutations(args, loaded, cwd);
   if (mutated) return 0;
 
   if (boolOption(args, 'json')) {
-    jsonOut({ ...loaded.config, _root: loaded.root, _path: loaded.path, _exists: loaded.exists });
+    jsonOut({ ...loaded.config, _root: loaded.root, _path: loaded.path, _exists: loaded.exists, _ignored_fields: loaded.ignoredFields });
     return 0;
   }
 
@@ -74,25 +61,15 @@ export async function configCommand(args: ParsedArgs, cwd: string): Promise<numb
   if (loaded.config.context.disabledCollectors.length > 0) {
     keyValue('disabled', loaded.config.context.disabledCollectors.join(', '));
   }
-  const routes = Object.entries(loaded.config.routes);
-  if (routes.length > 0) {
-    keyValue('routes', routes.map(([target, ids]) => `${target} → ${ids.join(', ')}`).join('; '));
+  if (loaded.ignoredFields.length > 0) {
+    out(`Legacy settings ignored: ${loaded.ignoredFields.join(', ')}. Agents Handoff only writes Markdown files.`);
   }
-  printProblems(loaded.config);
 
   if (!loaded.exists) {
     out();
     out(`Run ${style.cyan('handoff init')} to write a ${CONFIG_FILENAME}.`);
   }
   return 0;
-}
-
-/** Say what is wrong with delivery settings, including webhooks written into the file. */
-function printProblems(config: ReturnType<typeof loadConfig>['config']): void {
-  const problems = configProblems(config);
-  if (problems.length === 0) return;
-  out();
-  for (const problem of problems) out(`${style.yellow('warn')} ${problem}`);
 }
 
 /** Apply any `--set-*` flags. Returns true when the config was written. */

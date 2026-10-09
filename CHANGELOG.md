@@ -18,12 +18,12 @@ by `handoff_version` in its frontmatter.
 
 ### Packages
 
-- `agents-handoff-core` — schema, Markdown, git context, collectors, validation, storage,
-  channels, and the shared method agents follow. No model calls.
-- `agents-handoff-mcp` — ten tools and two prompts over stdio.
-- `agents-handoff` — the `handoff` CLI, interactive when run in a terminal and never when
+- `ryujin-handoff-core` — schema, Markdown, git context, collectors, validation, storage,
+  full Markdown export, and the shared method agents follow. No model calls.
+- `ryujin-handoff-mcp` — tools and two prompts over stdio.
+- `ryujin-handoff` — the `handoff` CLI, interactive when run in a terminal and never when
   driven by an agent.
-- `agents-handoff-claude-code` — the Claude Code plugin: two skills plus the MCP server.
+- `ryujin-handoff-claude-code` — the Claude Code plugin: two skills plus the MCP server.
 - The Codex plugin (`packages/integrations/codex`, installed from this repository's
   marketplace): two skills plus the MCP server.
 - The MCP server sends instructions on `initialize`, so a plain request ("write a handoff
@@ -37,19 +37,19 @@ by `handoff_version` in its frontmatter.
   those written at this commit or recently on this branch, and `handoff_write` turns a
   taken id into a question (update it, or keep both) rather than replacing it or filing a
   second copy.
-- Before asking where to deliver, the agent shows the Required Actions it wrote and offers
-  "let me review it first".
+- The agent shows the Required Actions it wrote and the path to the finished Markdown,
+  so the developer can review the complete document.
 - The context brief includes untracked files, lists only this branch's commits, reports a
   `git` failure instead of an empty change, and warns about uncommitted work a branch
   revision leaves out.
 
-### Delivery
+### Export
 
-- Channels: `file`, `clipboard`, `stdout` (local); `whatsapp`, `email` (compose — you pick
-  the recipients and press send); `slack`, `discord`, `trello`, `github` gist (push).
-- Link modes say who can read what they made: `repo` (whoever can read the repository),
-  `gist` (anyone with the link), `none`.
-- Routes per target, with configuration problems reported instead of silently ignored.
+- `handoff export <file|id>` and `handoff_export` validate and export the complete Markdown
+  as a local `.md` file, preserving the source bytes and all sections.
+- The default destination is `.handoff/exports/<id>.md`; export returns the destination
+  path and source path and leaves the document status unchanged.
+- The product generates, validates, exports and consumes local Markdown files.
 
 ### Receiving
 
@@ -61,7 +61,7 @@ by `handoff_version` in its frontmatter.
 
 - MCP paths resolved through symlinks before the boundary check; `--root` pinning.
 - A handoff's `id` never chooses where a file is written.
-- Credential scanning on write, validate and deliver; a received handoff that carries one
+- Credential scanning on write, validate and export; a received handoff that carries one
   is read but never stored.
 
 [0.1.0]: https://github.com/Ryujin-Labs/agents-handoff/releases/tag/v0.1.0

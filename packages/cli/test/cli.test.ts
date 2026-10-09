@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { execFileSync, spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -124,7 +124,7 @@ describe('handoff --version and help', () => {
   it('lists every command in the help output', () => {
     const result = handoff(repo, ['help']);
     assert.equal(result.code, 0);
-    for (const command of ['init', 'context', 'create', 'list', 'show', 'validate', 'receive', 'send', 'config', 'install']) {
+    for (const command of ['init', 'context', 'create', 'list', 'show', 'validate', 'receive', 'export', 'config', 'install']) {
       assert.match(result.stdout, new RegExp(`\\b${command}\\b`), `help is missing ${command}`);
     }
   });
@@ -387,24 +387,144 @@ describe('handoff receive', () => {
   });
 });
 
-describe('handoff send', () => {
-  it('writes a copy to a chosen path', () => {
-    const target = join(repo, 'outbox', 'scopes.md');
-    const result = handoff(repo, ['send', '2026-08-28-scopes', '--channel', 'file', '--to', target]);
-    assert.equal(result.code, 0);
-    assert.match(readFileSync(target, 'utf8'), /Messages need the write scope/);
+describe('handoff export', () => {
+  const id = '2026-08-28-scopes';
+  const source = join(repo, '.handoff', id, 'HANDOFF.md');
+
+  it('copies the complete Markdown to a chosen path', () => {
+    const target = join(repo, 'exported', 'scopes.md');
+    const result = handoff(repo, ['export', id, '--out', target]);
+    assert.equal(result.code, 0, result.stderr);
+    assert.equal(result.stdout.trim(), `exported ${target}`);
+    assert.equal(readFileSync(target, 'utf8'), readFileSync(source, 'utf8'));
+    assert.doesNotMatch(result.stdout, /^(sent|opened|ready) /m);
   });
 
-  it('prints to stdout when asked', () => {
-    const result = handoff(repo, ['send', '2026-08-28-scopes', '--channel', 'stdout']);
-    assert.equal(result.code, 0);
-    assert.match(result.stdout, /^---\nhandoff_version: 1/);
+  it('defaults to a named Markdown file and returns full content and paths as JSON', () => {
+    const before = readFileSync(source, 'utf8');
+    const result = handoff(repo, ['export', id, '--json']);
+    assert.equal(result.code, 0, result.stderr);
+    const json = JSON.parse(result.stdout);
+    assert.equal(realpathSync(json.path), realpathSync(join(repo, '.handoff', 'exports', `${id}.md`)));
+    assert.equal(realpathSync(json.source_path), realpathSync(source));
+    assert.equal(json.markdown, before);
+    assert.equal(readFileSync(json.path, 'utf8'), before);
+    assert.equal(readFileSync(source, 'utf8'), before);
+    assert.equal(existsSync(join(repo, '.handoff', 'outbox')), false);
   });
 
-  it('rejects an unknown channel', () => {
-    const result = handoff(repo, ['send', '2026-08-28-scopes', '--channel', 'carrier-pigeon']);
+  it('preserves exact bytes from a file path, including line endings and trailing whitespace', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'handoff-export-bytes-'));
+    dirs.push(dir);
+    const original = FINISHED_HANDOFF.replace(/\n/g, '\r\n') + '\r\n\r\n';
+    const input = join(dir, 'incoming.md');
+    const target = join(dir, 'copy.md');
+    writeFileSync(input, original);
+    const result = handoff(dir, ['export', input, '--out', target, '--json']);
+    assert.equal(result.code, 0, result.stderr);
+    assert.equal(JSON.parse(result.stdout).markdown, original);
+    assert.equal(readFileSync(input, 'utf8'), original);
+    assert.equal(readFileSync(target, 'utf8'), original);
+  });
+
+  it('accepts an existing destination directory', () => {
+    const target = join(repo, 'export-directory');
+    mkdirSync(target);
+    const result = handoff(repo, ['export', id, '--out', target, '--json']);
+    assert.equal(result.code, 0, result.stderr);
+    assert.equal(JSON.parse(result.stdout).path, join(target, `${id}.md`));
+  });
+
+  it('does not overwrite an unrelated file', () => {
+    const target = join(repo, 'unrelated.md');
+    writeFileSync(target, '# User notes\n');
+    const result = handoff(repo, ['export', id, '--out', target]);
     assert.equal(result.code, 1);
-    assert.match(result.stderr, /Unknown channel/);
+    assert.equal(readFileSync(target, 'utf8'), '# User notes\n');
+  });
+
+  it('rejects a destination that is not a Markdown filename', () => {
+    const target = join(repo, 'not-markdown.txt');
+    const result = handoff(repo, ['export', id, '--out', target]);
+    assert.equal(result.code, 1);
+    assert.equal(existsSync(target), false);
+    assert.match(result.stderr, /\.md|Markdown/);
+  });
+
+  it('returns the source path unchanged when exporting onto itself', () => {
+    const original = readFileSync(source, 'utf8');
+    const result = handoff(repo, ['export', source, '--out', source, '--json']);
+    assert.equal(result.code, 0, result.stderr);
+    const json = JSON.parse(result.stdout);
+    assert.equal(json.path, source);
+    assert.equal(json.unchanged, true);
+    assert.equal(readFileSync(source, 'utf8'), original);
+  });
+
+  it('preserves a legacy delivery status as document metadata', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'handoff-legacy-status-'));
+    dirs.push(dir);
+    const original = FINISHED_HANDOFF.replace('status: ready', 'status: delivered');
+    const source = join(dir, 'legacy.md');
+    writeFileSync(source, original);
+    const result = handoff(dir, ['export', source, '--json']);
+    assert.equal(result.code, 0, result.stderr);
+    const json = JSON.parse(result.stdout);
+    assert.equal(json.markdown, original);
+    assert.match(readFileSync(json.path, 'utf8'), /^status: delivered$/m);
+    assert.equal(readFileSync(source, 'utf8'), original);
+    assert.ok(!('delivered' in json));
+  });
+
+  it('requires exactly one existing handoff', () => {
+    assert.equal(handoff(repo, ['export']).code, 1);
+    assert.equal(handoff(repo, ['export', 'missing-id']).code, 1);
+    assert.equal(handoff(repo, ['export', id, id]).code, 1);
+  });
+
+  it('refuses a scaffold, an invalid document, or a document with credentials', () => {
+    const created = JSON.parse(handoff(repo, ['create', '--target', 'mobile', '--title', 'Export template', '--json']).stdout);
+    const scaffold = handoff(repo, ['export', created.id]);
+    assert.equal(scaffold.code, 1);
+    assert.match(scaffold.stderr, /scaffold|template|TODO/i);
+    const invalid = join(repo, 'invalid-export.md');
+    writeFileSync(invalid, FINISHED_HANDOFF.replace(/## Verification[\s\S]*?(?=## Instructions)/, ''));
+    assert.equal(handoff(repo, ['export', invalid]).code, 1);
+    const leaky = join(repo, 'leaky-export.md');
+    writeFileSync(leaky, FINISHED_HANDOFF.replace('## Verification', '## Notes\n\nUse token ghp_abcdefghijklmnopqrstuvwxyz0123456789 to test.\n\n## Verification'));
+    assert.equal(handoff(repo, ['export', leaky]).code, 1);
+  });
+});
+
+describe('removed delivery interface', () => {
+  it('rejects send with a file-only explanation and leaves files unchanged', () => {
+    const source = join(repo, '.handoff', '2026-08-28-scopes', 'HANDOFF.md');
+    const original = readFileSync(source, 'utf8');
+    for (const args of [['send', '2026-08-28-scopes'], ['send', '--list'], ['send', '--help']]) {
+      const result = handoff(repo, args);
+      assert.equal(result.code, 1);
+      assert.match(result.stderr, /only writes Markdown files/);
+      assert.match(result.stderr, /handoff export/);
+      assert.equal(result.stdout, '');
+    }
+    assert.equal(readFileSync(source, 'utf8'), original);
+    assert.equal(existsSync(join(repo, '.handoff', 'outbox')), false);
+  });
+
+  it('rejects every legacy delivery option explicitly', () => {
+    for (const args of [
+      ['export', '2026-08-28-scopes', '--channel', 'email'],
+      ['export', '2026-08-28-scopes', '--channel=email'],
+      ['export', '2026-08-28-scopes', '--to', 'team@example.com'],
+      ['export', '2026-08-28-scopes', '--link', 'none'],
+      ['export', '2026-08-28-scopes', '--no-open'],
+      ['config', '--channels'],
+      ['config', '--routes'],
+    ]) {
+      const result = handoff(repo, args);
+      assert.equal(result.code, 1, args.join(' '));
+      assert.match(result.stderr, /only writes Markdown files/, args.join(' '));
+    }
   });
 });
 
@@ -413,11 +533,12 @@ describe('handoff config', () => {
     const json = JSON.parse(handoff(repo, ['config', '--json']).stdout);
     assert.equal(json.project, 'svc');
     assert.equal(json._exists, true);
+    assert.ok(!('channels' in json));
+    assert.ok(!('routes' in json));
   });
 
-  it('lists collectors and channels', () => {
+  it('lists context collectors', () => {
     assert.match(handoff(repo, ['config', '--collectors']).stdout, /agent-context/);
-    assert.match(handoff(repo, ['config', '--channels']).stdout, /clipboard/);
   });
 
   it('updates a setting and reads it back', () => {
@@ -431,6 +552,28 @@ describe('handoff config', () => {
     const result = handoff(dir, ['config']);
     assert.equal(result.code, 0);
     assert.match(result.stdout, /defaults; no config file found/);
+  });
+
+  it('ignores legacy delivery settings while preserving user data on a project update', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'handoff-legacy-config-'));
+    dirs.push(dir);
+    const legacy = { project: 'legacy', channels: { email: { to: 'team@example.com' } }, routes: { default: ['email'] }, custom: { keep: true } };
+    writeFileSync(join(dir, 'handoff.config.json'), JSON.stringify(legacy));
+    mkdirSync(join(dir, '.handoff', 'outbox'), { recursive: true });
+    const previousExport = join(dir, '.handoff', 'outbox', 'previous.md');
+    writeFileSync(previousExport, '# Existing user file\n');
+    const config = JSON.parse(handoff(dir, ['config', '--json']).stdout);
+    assert.ok(!('channels' in config));
+    assert.ok(!('routes' in config));
+    assert.deepEqual(config._ignored_fields, ['channels', 'routes']);
+    assert.match(handoff(dir, ['config']).stdout, /Legacy settings ignored: channels, routes/);
+    assert.equal(handoff(dir, ['config', '--set-project', 'updated']).code, 0);
+    const raw = JSON.parse(readFileSync(join(dir, 'handoff.config.json'), 'utf8'));
+    assert.equal(raw.project, 'updated');
+    assert.deepEqual(raw.channels, legacy.channels);
+    assert.deepEqual(raw.routes, legacy.routes);
+    assert.deepEqual(raw.custom, legacy.custom);
+    assert.equal(readFileSync(previousExport, 'utf8'), '# Existing user file\n');
   });
 });
 
@@ -484,7 +627,7 @@ describe('the full loop', () => {
 
     // 3. It goes out as a file.
     const delivered = join(repo, 'delivered.md');
-    assert.equal(handoff(repo, ['send', created.id, '--channel', 'file', '--to', delivered]).code, 0);
+    assert.equal(handoff(repo, ['export', created.id, '--out', delivered]).code, 0);
 
     // 4. The mobile developer's agent reads it in their own repository.
     const consumer = mkdtempSync(join(tmpdir(), 'handoff-loop-'));
@@ -542,62 +685,6 @@ describe('generated skills stay current', () => {
       { cwd: resolve(here, '..', '..', '..', '..'), encoding: 'utf8' },
     );
     assert.equal(result.status, 0, `${result.stdout ?? ''}${result.stderr ?? ''}`);
-  });
-});
-
-describe('delivery does not launch anything under --no-open', () => {
-  // A finished handoff, stored under its own id. A scaffold from `handoff create` is refused
-  // by `send`, which is its own test below.
-  function finished(id: string): string {
-    const stored = JSON.parse(
-      handoff(repo, ['create', '--stdin', '--json', '--force'], FINISHED_HANDOFF.replace(/^id: .*$/m, `id: ${id}`)).stdout,
-    );
-    return stored.id as string;
-  }
-
-  it('prints the link rather than opening it', () => {
-    const id = finished('2026-08-28-openable');
-    const result = handoff(repo, [
-      'send', id, '--channel', 'whatsapp', '--to', '+905551112233', '--no-open',
-    ]);
-    assert.equal(result.code, 0, result.stderr);
-    // Either scheme is correct: whatsapp:// where the desktop app is installed, wa.me
-    // where it is not. What matters is that --no-open printed rather than launched.
-    assert.match(result.stdout, /Open this to compose: /);
-    assert.match(result.stdout, /905551112233/);
-    // Nothing was opened and nothing left the machine: the line says the draft is ready.
-    assert.doesNotMatch(result.stdout, /^(sent|opened) /m);
-    assert.match(result.stdout, /^ready /m);
-  });
-
-  it('keeps a file copy with no --to out of the working tree', () => {
-    const id = finished('2026-08-28-file-default');
-    const before = spawnSync('git', ['status', '--porcelain', '--untracked-files=all'], { cwd: repo, encoding: 'utf8' }).stdout;
-    const result = handoff(repo, ['send', id, '--channel', 'file']);
-    assert.equal(result.code, 0, result.stderr);
-    assert.ok(existsSync(join(repo, '.handoff', 'outbox', `${id}.md`)), result.stdout);
-    const after = spawnSync('git', ['status', '--porcelain', '--untracked-files=all'], { cwd: repo, encoding: 'utf8' }).stdout;
-    assert.equal(after, before, 'the copy shows up as a file to commit');
-  });
-
-  it('opens the contact picker when no number is configured', () => {
-    // Keeping colleagues' phone numbers in a config file is what this replaces: WhatsApp
-    // documents `wa.me/?text=` as the form that opens a contact list to choose from.
-    const id = finished('2026-08-28-no-number');
-    const result = handoff(repo, [
-      'send', id, '--channel', 'whatsapp', '--link', 'none', '--no-open',
-    ]);
-    assert.equal(result.code, 0, result.stderr);
-    assert.match(result.stdout, /https:\/\/wa\.me\/\?text=/);
-  });
-
-  it('refuses to send a scaffold that still has TODO markers', () => {
-    const created = JSON.parse(
-      handoff(repo, ['create', '--target', 'mobile', '--title', 'Still a template', '--json']).stdout,
-    );
-    const result = handoff(repo, ['send', created.id, '--channel', 'stdout']);
-    assert.equal(result.code, 1);
-    assert.match(result.stderr, /scaffold/);
   });
 });
 
@@ -693,14 +780,6 @@ describe('handoff receive and a credential in the document', () => {
     assert.ok(parsed.not_stored?.includes('credential'), result.stdout);
     assert.ok((parsed.secrets ?? []).length > 0);
     assert.equal(existsSync(join(consumer, '.handoff', 'inbox')), false);
-  });
-});
-
-describe('handoff send --list with no handoff named', () => {
-  it('shows what is set up instead of a usage error', () => {
-    const result = handoff(repo, ['send', '--list']);
-    assert.equal(result.code, 0, result.stderr);
-    assert.match(result.stdout, /clipboard/);
   });
 });
 

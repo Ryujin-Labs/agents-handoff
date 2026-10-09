@@ -15,9 +15,12 @@ After finishing a change:
 handoff context --target mobile     # the deterministic brief a coding agent reads
 handoff create  --target mobile     # a draft with real git facts, for an agent to finish
 handoff validate <id> --strict
-handoff send <id> --list            # where this project sends things
-handoff send <id>                   # deliver through the configured route
+handoff export <id>                # the full Markdown at a reported local path
+handoff export <id> --out ./exports/change.md
 ```
+
+Export defaults to `.handoff/exports/<id>.md` and preserves the complete source document.
+Open or download that file from your client, then give it to the receiving developer.
 
 On the receiving side:
 

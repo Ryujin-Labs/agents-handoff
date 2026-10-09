@@ -5,31 +5,9 @@ import type { ParsedArgs } from '../args.ts';
 import { select, text, type Choice } from '../prompt/index.ts';
 import { err, out, style } from '../ui.ts';
 import { receiveCommand } from '../commands/receive.ts';
-import { sendCommand } from '../commands/send.ts';
-import { pickChannel, pickHandoff, pickReceivingTarget } from './pick.ts';
+import { pickReceivingTarget } from './pick.ts';
 
 const TYPE_A_PATH = ' type-a-path';
-
-/** Walk a developer through sending a handoff they already created. */
-export async function interactiveSend(cwd: string): Promise<number> {
-  const entry = await pickHandoff(cwd, 'outgoing', 'Which handoff do you want to send?');
-  if (!entry) {
-    out(style.dim('No handoffs here yet.'));
-    out(`Create one with ${style.cyan('handoff create')}.`);
-    return 0;
-  }
-
-  const channel = await pickChannel(loadConfig(cwd).config, entry.handoff.frontmatter.targets);
-  const values: ParsedArgs['values'] = { channel };
-  if (channel === 'file') {
-    values['to'] = await text({
-      message: 'Write it where?',
-      default: relative(cwd, join(handoffDirectory(loadConfig(cwd)), 'outbox')),
-      validate: (value) => (value.trim() ? null : 'give it a path'),
-    });
-  }
-  return sendCommand({ values, positionals: [entry.id] }, cwd);
-}
 
 /**
  * Walk a developer through reading a handoff someone sent them.

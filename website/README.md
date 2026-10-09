@@ -23,6 +23,12 @@ So **edit the source file, not the generated page** — the generated pages are 
 and each one's "Edit page" link points at its source. To add a page, add an entry to
 `PAGES` in the script and a sidebar item in `docs/astro.config.mjs`.
 
+The product workflow is Markdown-file-only: write and review a handoff, export the complete
+file with `handoff export <file|id> [--out path]`, then read or consume that file in the
+receiving repository. The `guides/export` page comes from the README's `## Export` section;
+the landing page and introduction are handwritten and must use the same commands and
+workflow. Install-command copy buttons are website conveniences.
+
 ## Running it
 
 Requires Node.js 22.12 or later.

@@ -14,14 +14,14 @@ import {
   validateOptions,
 } from './commands/inspect.ts';
 import { receiveCommand, receiveOptions } from './commands/receive.ts';
-import { sendCommand, sendOptions } from './commands/send.ts';
+import { exportCommand, exportOptions } from './commands/export.ts';
 import { err, heading, out, style } from './ui.ts';
 import { canPrompt, detectInteractive, setSession, type Session } from './session.ts';
 import { PromptCancelled } from './prompt/index.ts';
 import { mainMenu } from './interactive/menu.ts';
 import { interactiveCreate } from './interactive/create.ts';
 import { interactiveInit } from './interactive/setup.ts';
-import { interactiveReceive, interactiveSend } from './interactive/transfer.ts';
+import { interactiveReceive } from './interactive/transfer.ts';
 
 interface Command {
   name: string;
@@ -94,18 +94,16 @@ const COMMANDS: Command[] = [
       args.positionals.length === 0 && !hasAnyFlag(args) ? interactiveReceive(cwd) : null,
   },
   {
-    name: 'send',
-    summary: 'Deliver a handoff through a channel: chat, mail, Slack, Trello, a file…',
-    usage: 'handoff send <id> [--channel <id>] [--to <where>] [--link repo|gist|none] [--list] [--no-open]',
-    options: sendOptions,
-    run: sendCommand,
-    interactive: (args, cwd) =>
-      args.positionals.length === 0 && !hasAnyFlag(args) ? interactiveSend(cwd) : null,
+    name: 'export',
+    summary: 'Export the complete handoff as a Markdown file',
+    usage: 'handoff export <file|id> [--out <path>] [--json]',
+    options: exportOptions,
+    run: exportCommand,
   },
   {
     name: 'config',
     summary: 'Show or change project configuration',
-    usage: 'handoff config [--json] [--collectors] [--channels] [--set-project <name>]',
+    usage: 'handoff config [--json] [--collectors] [--set-project <name>]',
     options: configOptions,
     run: configCommand,
   },
@@ -134,6 +132,13 @@ export async function main(argv: string[], cwd: string, session?: Session): Prom
   setSession(session ?? { interactive: detectInteractive(noInput) });
 
   const [first, ...rest] = args;
+
+  const deliveryFlags = new Set(['--channel', '--channels', '--route', '--routes', '--to', '--link', '--no-open']);
+  if (first === 'send' || (first === 'help' && rest[0] === 'send') || args.some((value) => deliveryFlags.has(value.split('=')[0] ?? value))) {
+    err('Agents Handoff only writes Markdown files. Delivery commands and options are no longer supported.');
+    err('Use handoff export <file|id> [--out <path>] to get the complete Markdown file.');
+    return 1;
+  }
 
   if (first === '--version' || first === '-v' || first === 'version') {
     out(VERSION);
@@ -227,7 +232,7 @@ function helpCommand(rest: string[]): number {
   heading('The loop');
   out('  1. finish a change');
   out(`  2. ${style.cyan('/handoff mobile')} in your coding agent, or ${style.cyan('handoff create --target mobile')}`);
-  out('  3. send .handoff/<id>/HANDOFF.md to your teammate');
+  out(`  3. ${style.cyan('handoff export <id>')} writes the complete Markdown file`);
   out(`  4. they run ${style.cyan('/handoff-receive <file>')} and their agent knows what to build`);
   out();
   out(style.dim('handoff help <command> for details on one command.'));

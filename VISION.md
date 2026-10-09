@@ -6,7 +6,7 @@ Git tells you **what code changed**.
 
 Nothing tells the next developer **what that change means for them**.
 
-That gap is normally filled by a Slack message, a stand-up, a PR description nobody
+That gap is normally filled by a brief message, a stand-up, a PR description nobody
 reads, or a 40-minute call. It is filled badly, late, or not at all — and now there is a
 second audience that is even worse served by it: the coding agent sitting next to every
 developer.
@@ -23,14 +23,14 @@ One developer's agent writes a short, structured `HANDOFF.md`. Another developer
 reads it and knows exactly what to do.
 
 ```
-software change → understanding → structured handoff → delivery → receiving agent → implementation
+software change → understanding → structured Markdown → export → receiving agent → implementation
 ```
 
 The artifact is a Markdown file. Markdown, because:
 
 - humans can read it with no tooling at all
 - every coding agent already reads it well
-- it survives Slack, Discord, email, a PR comment, and a paste into a chat window
+- it is a complete, portable file that any developer can open and any agent can consume
 - it is diffable, greppable, and reviewable
 
 The top of the file is YAML frontmatter, so machines get a stable contract before they
@@ -44,9 +44,8 @@ this code do?"*. Agents Handoff answers a different and much narrower question:
 > **"You are a different developer, working in a different codebase. What do you have to
 > change, and why?"**
 
-Agents Handoff is also not project management. It is not Jira, Linear, Slack, or GitHub, and it
-should never grow into them. Its responsibility starts when a change is finished and ends
-when the receiving agent knows what to implement. Everything after that belongs to the
+Agents Handoff is also not project management or a transport service. Its responsibility
+starts when a change is finished and ends when the receiving agent knows what to implement. Everything after that belongs to the
 tools that already exist.
 
 ## Principles
@@ -54,8 +53,8 @@ tools that already exist.
 1. **Agent-first, human-readable.** The primary consumer is a coding agent. The secondary
    consumer is a human in a hurry. Both are served by the same file.
 2. **Local-first and private by default.** Agents Handoff reads your repository and writes a file.
-   It never uploads source code anywhere. Any future delivery channel is opt-in, explicit,
-   and visible.
+   It validates and exports the complete Markdown, with a local path the developer can
+   review and use.
 3. **Deterministic core, intelligent edges.** Everything that can be computed from Git and
    the filesystem is computed by plain, testable code. Only judgment — what matters, what
    breaks, what the other team must do — is left to a model.

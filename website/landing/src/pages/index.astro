@@ -59,8 +59,8 @@ const steps = [
     body: 'The tool gathers the facts from git — routes, auth guards, types, migrations, environment variables. Your agent writes what they mean for the other team, from what it knows about building the change with you.',
   },
   {
-    title: 'Review it, then send it',
-    body: 'You see the Required Actions before anything leaves. Pick a route — WhatsApp, email, Slack, Trello, a file — and press send yourself.',
+    title: 'Review and export the file',
+    body: 'Read the Required Actions, then export the complete handoff as Markdown. Choose an output path or use the default .handoff/exports directory. Give that file to the other team.',
   },
   {
     title: 'Their agent picks it up',
@@ -76,11 +76,11 @@ const principles = [
   },
   {
     title: 'Local-first',
-    body: 'Writing, validating and receiving a handoff never touch the network. There is no server, no account and no telemetry — it runs where your code already is.',
+    body: 'Writing, validating, exporting and receiving a handoff happen locally. There is no server, no account and no telemetry — it runs where your code already is.',
   },
   {
-    title: 'Nothing leaves without you',
-    body: 'Your agent asks before it delivers, every time, and says who can read any link it creates. It never commits. Sending is always the last click, and it is yours.',
+    title: 'The document is the interface',
+    body: 'Export the complete Markdown to a path you choose. The other team can read that file without installing anything, or ask its agent to consume it in their own repository.',
   },
   {
     title: 'A received handoff is data, not orders',
@@ -88,7 +88,7 @@ const principles = [
   },
 ];
 
-const channels = ['WhatsApp', 'Email', 'Slack', 'Discord', 'Trello', 'GitHub gist', 'File', 'Clipboard'];
+const fileSteps = ['Write', 'Review', 'Export Markdown', 'Read or consume'];
 const themes = { light: 'github-light', dark: 'github-dark' } as const;
 ---
 
@@ -129,7 +129,7 @@ const themes = { light: 'github-light', dark: 'github-dark' } as const;
 
         <div class="contrast">
           <div class="side before">
-            <p class="side-label">What usually gets sent</p>
+            <p class="side-label">What usually gets written</p>
             <div class="bubble">
               heads up, refresh changed — tokens rotate now. update the app when you get a chance
             </div>
@@ -141,7 +141,7 @@ const themes = { light: 'github-light', dark: 'github-dark' } as const;
             </ul>
           </div>
           <div class="side after">
-            <p class="side-label">What a handoff sends</p>
+            <p class="side-label">What a handoff records</p>
             <div class="mini-doc">
               <p class="mini-title">Refresh tokens are now single-use <span class="tag">breaking</span></p>
               <p class="mini-h">Summary</p>
@@ -166,7 +166,7 @@ const themes = { light: 'github-light', dark: 'github-dark' } as const;
         <span class="eyebrow">How it works</span>
         <h2 class="section-title">One request on each side.</h2>
         <p class="section-lede">
-          No new workflow to learn: you ask your agent, it does the work, and you stay in control of what goes out.
+          Ask your agent to explain the change, review the document, and export a file the other team can use.
         </p>
         <ol class="steps">
           {
@@ -246,12 +246,12 @@ const themes = { light: 'github-light', dark: 'github-dark' } as const;
             ))
           }
         </div>
-        <div class="channels">
-          <p>Send it the way your team already talks:</p>
+        <div class="file-workflow">
+          <p>One complete Markdown file:</p>
           <ul>
-            {channels.map((channel) => <li>{channel}</li>)}
+            {fileSteps.map((step) => <li>{step}</li>)}
           </ul>
-          <a class="more" href={`${DOCS_URL}/guides/delivery/`}>Delivery and privacy →</a>
+          <a class="more" href={`${DOCS_URL}/guides/export/`}>Export a Markdown file →</a>
         </div>
       </div>
     </section>
@@ -562,7 +562,7 @@ const themes = { light: 'github-light', dark: 'github-dark' } as const;
     font-size: 15px;
   }
 
-  .channels {
+  .file-workflow {
     margin-top: 40px;
     display: flex;
     flex-wrap: wrap;
@@ -570,12 +570,12 @@ const themes = { light: 'github-light', dark: 'github-dark' } as const;
     gap: 12px 16px;
   }
 
-  .channels p {
+  .file-workflow p {
     color: var(--fg-muted);
     font-size: 15px;
   }
 
-  .channels ul {
+  .file-workflow ul {
     list-style: none;
     margin: 0;
     padding: 0;
@@ -584,7 +584,7 @@ const themes = { light: 'github-light', dark: 'github-dark' } as const;
     gap: 8px;
   }
 
-  .channels li {
+  .file-workflow li {
     padding: 4px 12px;
     border: 1px solid var(--border-strong);
     border-radius: 999px;
@@ -592,7 +592,7 @@ const themes = { light: 'github-light', dark: 'github-dark' } as const;
     background: var(--bg-elevated);
   }
 
-  .channels .more {
+  .file-workflow .more {
     margin-top: 0;
   }
 

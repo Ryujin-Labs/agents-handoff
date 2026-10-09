@@ -10,7 +10,7 @@ export default defineConfig({
     starlight({
       title: 'Agents Handoff',
       description:
-        'Docs for Agents Handoff: an open format and a local-first toolkit for handing a finished change to the next team’s coding agent.',
+        'Docs for Agents Handoff: an open Markdown format and a local toolkit for explaining a finished change to the next team’s coding agent.',
       logo: { src: './src/assets/logo.svg' },
       favicon: '/favicon.svg',
       social: [{ icon: 'github', label: 'GitHub', href: REPO_URL }],
@@ -31,7 +31,7 @@ export default defineConfig({
           label: 'Guides',
           items: [
             { slug: 'guides/writing-good-handoffs' },
-            { slug: 'guides/delivery' },
+            { slug: 'guides/export' },
             { slug: 'guides/configuration' },
           ],
         },

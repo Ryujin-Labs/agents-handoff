@@ -40,7 +40,7 @@ This writes \`.handoff/<id>/HANDOFF.md\` with the frontmatter already filled in 
 
 Read that file, then rewrite it with the Write tool. **Keep the generated frontmatter as it is**, with three exceptions you set yourself: \`status: ready\`, \`breaking:\`, and a corrected \`change_type:\`.
 
-Every \`<!-- TODO -->\` must be gone. A document that still contains one is a scaffold, not a handoff — \`handoff validate\` rejects a \`status: ready\` document that has one, and \`handoff send\` refuses to deliver it.`,
+Every \`<!-- TODO -->\` must be gone. A document that still contains one is a scaffold, not a handoff — \`handoff validate\` rejects a \`status: ready\` document that has one, and \`handoff export\` refuses to export it.`,
 
   cut: {
     after: `Then check it:
@@ -53,22 +53,15 @@ Fix every error. Warnings are advice — \`too-long\`, \`diff-dump\` and \`unstr
   },
 
   report: {
-    after: `See how this project reaches the target, then put the routes to the developer with AskUserQuestion so they can pick rather than type — with "let me review it first" among the options — and deliver the one they pick yourself, rather than handing them a command to run.
+    after: `Export the complete Markdown file and give the developer its path or a downloadable file.
 
-With the \`handoff_*\` MCP tools: \`handoff_delivery_options\`, then \`handoff_deliver\` once they have picked. Without them:
+With the \`handoff_*\` MCP tools, call \`handoff_export\` for the stored handoff. Without them:
 
 \`\`\`
-handoff send <id> --list
-handoff send <id> --channel <route>
+handoff export <id>
 \`\`\`
 
-For whatsapp, email and slack, \`--link\` decides what the message carries — offer it in the same question, with who can read each:
-
-- \`--link repo\` — a link to the handoff where it is committed. Readable by whoever can read the repository; nothing is uploaded. Needs the handoff pushed.
-- \`--link gist\` — uploads a secret gist. Unlisted, but readable by anyone who has the URL.
-- no link — the file is revealed for the developer to attach.
-
-Never run the send without being asked.`,
+Use \`--out <path>\` when a different output file or directory is needed. The export preserves the complete Markdown, including frontmatter and every section. This product only produces files; it does not choose recipients, open applications or send messages.`,
   },
 
   check: `Ask with AskUserQuestion, your proposal as the first option.
@@ -139,7 +132,7 @@ export function generateSkills(): GeneratedSkill[] {
         // ("write a handoff for mobile") rather than typing the command. The description
         // keeps it to that request.
         description:
-          'Write a HANDOFF.md about a software change the developer finished, for another team and their coding agent. Use when the developer asks to write, create or send a handoff, or to tell another team (mobile, web, frontend, backend, sdk, devops...) about a change; never on your own initiative.',
+          'Write and export a complete HANDOFF.md about a software change the developer finished, for another team and their coding agent. Use when the developer asks to write, create or export a handoff, or to document a change for another team (mobile, web, frontend, backend, sdk, devops...); never on your own initiative.',
         'argument-hint': '[target] [note]',
         'allowed-tools':
           'Bash(handoff *) Bash(npx --yes ryujin-handoff *) Bash(git diff *) Bash(git log *) Read Grep Glob Write',
