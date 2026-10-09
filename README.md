@@ -199,7 +199,8 @@ team actually sends things.
 | Channel | Kind | What happens | Who can read it |
 |---|---|---|---|
 | `file` · `clipboard` | local | copies it | you |
-| `whatsapp` · `email` | compose | opens the app with the message written; **you pick the chats and press send** | the people you send it to — and, with `link: gist`, anyone with the link |
+| `whatsapp` | compose | opens a short actionable intro; **you attach the file if needed, pick the chats and press send** | the people you send it to — and, with `link: gist`, anyone with the link |
+| `email` | compose | opens a draft with the summary and required actions; **you attach the file if needed, pick the recipients and press send** | the people you send it to — and, with `link: gist`, anyone with the link |
 | `slack` | push | posts the summary and required actions | the channel |
 | `discord` | push | posts the summary with the handoff attached | the channel |
 | `trello` | push | creates a card with the handoff as its description | the board |
@@ -235,10 +236,16 @@ a group. No phone numbers in config; `--to` is only a shortcut for one fixed per
 creates a card from JSON — or the board's email-to-board address as `to`, which opens a
 draft instead. Either URL carries a credential, so write `${ENV_VAR}` in the config.
 
-With a link mode set, the message reads *"Read it here: …"* and there is nothing to attach.
-Without one it reads *"Sending the file next"*, and the file — named after the handoff, not
-`HANDOFF.md` — is revealed ready to drag in. **The message never claims an attachment it did
-not make**, because the recipient acts on that sentence.
+WhatsApp opens a short actionable intro with the full share link when one is configured
+and available. Otherwise, the named Markdown is exported locally and its full path is
+shown to you. Attach that file manually in the chat, choose the recipients, then press
+send. The tool sends no WhatsApp message.
+
+**Email** opens a `mailto:` draft with one plain summary and required-actions block. A
+`mailto:` link cannot attach a file automatically. When there is no share link, the tool
+exports `.handoff/outbox/<handoff-id>.md` and shows its full local path. Manually attach
+that file in your mail client, choose the recipients, then press send. When the draft
+contains a share link, you can send it without an attachment. The tool sends no email.
 
 ## Keeping handoffs private
 
@@ -348,8 +355,9 @@ This is 0.1. What it does not do yet, plainly:
   TypeScript/JavaScript and Python backends. Go, Rails and OpenAPI are partly covered; Django,
   Spring, Ktor, Swift and Kotlin types are not detected yet. The agent reads the code either
   way — the brief is a starting point, never the verdict.
-- **Attaching a file is smoothest on macOS**, where it is revealed in Finder and put on the
-  clipboard. Elsewhere links open normally and you are told where the file is.
+- **Attachments are manual.** On macOS the exported file is revealed in Finder; its
+  local path is shown on every platform. Select that file in your mail or chat client
+  before sending. A clipboard file reference does not attach a file in every client.
 - **No acknowledgement tracking.** A handoff does not know whether it was read.
 - **Claude Code and Codex are the tested clients**, each with a plugin. Any other MCP client
   works through the server alone.

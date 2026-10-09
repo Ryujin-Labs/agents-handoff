@@ -1,10 +1,11 @@
 import assert from 'node:assert/strict';
-import { execFileSync } from 'node:child_process';
+import childProcess, { execFileSync } from 'node:child_process';
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { syncBuiltinESMExports } from 'node:module';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { basename, join } from 'node:path';
 import { PassThrough, Writable } from 'node:stream';
-import { after, describe, it } from 'node:test';
+import { after, describe, it, mock } from 'node:test';
 import { main } from '../src/cli.ts';
 import { setSession } from '../src/session.ts';
 import type { PromptIO } from '../src/prompt/index.ts';
@@ -15,10 +16,34 @@ const ENTER = '\r';
 const SPACE = ' ';
 const CTRL_C = '\u0003';
 
+// These tests run the real commands in process. A picker regression must fail a test,
+// never open the developer's mail client or replace their clipboard with a fixture.
+const desktopCommands = new Set([
+  'open', 'osascript', 'pbcopy', 'pbpaste', 'xdg-open', 'gio', 'gnome-open',
+  'cmd', 'cmd.exe', 'clip', 'clip.exe', 'wl-copy', 'xclip', 'xsel',
+  'powershell', 'powershell.exe', 'explorer', 'explorer.exe',
+]);
+const desktopCalls: string[] = [];
+const realSpawnSync = childProcess.spawnSync;
+mock.method(childProcess, 'spawnSync', ((...args: Parameters<typeof realSpawnSync>) => {
+  if (desktopCommands.has(basename(args[0]).toLowerCase())) {
+    desktopCalls.push(args[0]);
+    return { pid: 0, output: [null, null, null], stdout: '', stderr: '', status: 1, signal: null };
+  }
+  return Reflect.apply(realSpawnSync, childProcess, args);
+}) as typeof realSpawnSync);
+syncBuiltinESMExports();
+
 const dirs: string[] = [];
 after(() => {
   setSession({ interactive: false });
-  for (const dir of dirs) rmSync(dir, { recursive: true, force: true });
+  try {
+    for (const dir of dirs) rmSync(dir, { recursive: true, force: true });
+  } finally {
+    mock.restoreAll();
+    syncBuiltinESMExports();
+  }
+  assert.deepEqual(desktopCalls, [], 'interactive tests attempted a desktop side effect');
 });
 
 function git(cwd: string, args: string[]): void {
@@ -76,6 +101,7 @@ async function run(cwd: string, argv: string[], keys: string[]): Promise<Run> {
 
   try {
     const code = await main(argv, cwd, { interactive: true, io });
+    assert.deepEqual(desktopCalls, [], 'interactive flow attempted a desktop side effect');
     return { code, output: written.replace(/\u001b\[[0-9;?]*[A-Za-z]/g, '') };
   } finally {
     clearInterval(tick);
@@ -210,6 +236,9 @@ describe('interactive init', () => {
 describe('interactive send', () => {
   it('picks a handoff and a channel', async () => {
     const repo = makeRepo();
+    // Routing selects by channel identity instead of relying on a platform-dependent
+    // list index. The old single DOWN selected email on macOS and opened real Mail.
+    writeFileSync(join(repo, 'handoff.config.json'), JSON.stringify({ routes: { default: ['file'] } }));
     // A finished handoff: `send` refuses a scaffold, so one straight from `create` would
     // test the refusal rather than the picker.
     mkdirSync(join(repo, '.handoff', '2026-08-28-sendable'), { recursive: true });
@@ -259,13 +288,16 @@ describe('interactive send', () => {
 
     const result = await run(repo, ['send'], [
       ENTER, // the only handoff
-      DOWN,
-      ENTER, // channel: second in the list (file)
+      ENTER, // routed file channel
       ENTER, // accept the default path
     ]);
     assert.equal(result.code, 0, result.output);
     assert.match(result.output, /Which handoff do you want to send\?/);
     assert.match(result.output, /Send it where\?/);
+    assert.match(result.output, /Write it where\?/);
+    const original = join(repo, '.handoff', '2026-08-28-sendable', 'HANDOFF.md');
+    const exported = join(repo, '.handoff', 'outbox', '2026-08-28-sendable.md');
+    assert.equal(readFileSync(exported, 'utf8'), readFileSync(original, 'utf8'));
   });
 
   it('does not prompt when only flags were given', async () => {

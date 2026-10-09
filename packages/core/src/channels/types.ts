@@ -21,6 +21,8 @@ export interface SendResult {
   shareVisibility?: string;
   /** What the developer still has to do, when anything is left. */
   nextStep?: string;
+  /** Local Markdown export ready for manual attachment; this is not an attached file. */
+  exportedPath?: string;
   /**
    * True when only a draft was opened. Nothing has reached the recipient until the
    * developer presses send, so no caller may report this as sent.

@@ -317,7 +317,7 @@ export const DELIVER_DESCRIPTION = `Deliver one or more stored handoffs.
 
 Pass \`ids\` to deliver several at once — one change often produces a handoff per team, and each goes to the route configured for its own target.
 
-Local channels (clipboard, file, text) upload nothing. Push channels (slack, discord, trello, github) send the handoff to a third party. Compose channels (whatsapp, email) open the app with a line ready and put the handoff on the clipboard, so one paste attaches it — the developer presses send.
+Local channels (clipboard, file, text) upload nothing. Push channels (slack, discord, trello, github) send the handoff to a third party. Compose channels (whatsapp, email) prepare a draft and export the Markdown for manual attachment unless the message carries a share link. Email uses mailto and does not automatically attach a file. Report the exported_path and next_step to the developer; clipboard paste behavior depends on the client. The developer picks recipients and presses send.
 
 **Ask the developer before calling this**, using your question UI so they can pick rather than type. Delivery leaves the machine and is their decision. Call handoff_delivery_options first so the choices you offer are the ones this project actually configured.`;
 
@@ -363,6 +363,7 @@ interface Delivery {
   /** Where the handoff was uploaded on the way — a secret gist — even when not sent. */
   uploaded?: string | undefined;
   next_step?: string | undefined;
+  exported_path?: string | undefined;
 }
 
 /** Never offered or reached here: stdout is this server's protocol stream. */
@@ -481,6 +482,7 @@ async function deliverOne(
       share_url: result.shareUrl,
       share_visibility: result.shareVisibility,
       next_step: result.nextStep,
+      exported_path: result.exportedPath,
     });
   }
   return deliveries;

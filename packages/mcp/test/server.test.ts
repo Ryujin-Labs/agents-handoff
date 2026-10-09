@@ -357,6 +357,26 @@ describe('handoff_validate and handoff_deliver', () => {
     assert.equal(result.isError, false, result.text);
     assert.ok(existsSync(target));
   });
+
+  it('returns a readable email export and manual attachment instructions without opening or sending', async () => {
+    const result = await client.callTool('handoff_deliver', {
+      project_dir: repo,
+      id: 'facts-check',
+      channel: 'email',
+      link: 'none',
+      open: false,
+    });
+    assert.equal(result.isError, false, result.text);
+    assert.equal(result.structured?.['sent'], false);
+    const exported = result.structured?.['exported_path'] as string;
+    assert.equal(exported, realpathSync(join(repo, '.handoff', 'outbox', 'facts-check.md')));
+    assert.equal(readFileSync(exported, 'utf8'), readFileSync(join(repo, '.handoff', 'facts-check', 'HANDOFF.md'), 'utf8'));
+    assert.match(result.text, /No file is attached automatically/);
+    assert.match(result.text, /Choose a recipient/);
+    const body = new URL(result.structured?.['url'] as string).searchParams.get('body') ?? '';
+    assert.doesNotMatch(body, /Sending the file next/);
+    assert.ok(!body.includes(exported));
+  });
 });
 
 describe('handoff_setup', () => {

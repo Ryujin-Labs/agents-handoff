@@ -132,7 +132,8 @@ up committed here; the output names what matched.
 | Channel | Kind | |
 |---|---|---|
 | `file` · `clipboard` · `stdout` | local | Nothing leaves the machine. `file` writes to `.handoff/outbox/` unless `--to` names a place, and never replaces a file that is not a copy of the same handoff |
-| `whatsapp` · `email` | compose | Opens the app with the message written; you pick the recipients and press send |
+| `whatsapp` | compose | Opens a short actionable intro; you attach the file if needed, pick the chats and press send |
+| `email` | compose | Opens a draft with the summary and required actions; you attach the file if needed, pick the recipients and press send |
 | `slack` | push | Posts the summary and required actions to a webhook |
 | `discord` | push | Posts the summary with the handoff attached |
 | `trello` | push | Creates a card from a webhook, or opens a draft to the board's email address |
@@ -143,8 +144,16 @@ meant to fill in. For a compose channel the result line reads `opened` (or `read
 `--no-open` printed the link instead), never `sent`, because nothing reaches anyone until
 you press send in the app. With `--link gist` the handoff is
 uploaded to a secret gist first, and the output says so. When the message carries a link,
-the line after it says who can read it. A copy named after the handoff, for attaching, is
-put in `.handoff/outbox/`, which keeps itself out of git.
+the line after it says who can read it. When no share link is available, a Markdown copy
+named after the handoff is exported to `.handoff/outbox/<handoff-id>.md`, which keeps itself
+out of git, and the result shows its full local path.
+
+Email fills a `mailto:` draft with one plain summary and required-actions block. `mailto:`
+cannot attach files automatically: manually attach the exported Markdown in your mail
+client, choose the recipients, then press send. WhatsApp opens a short actionable intro
+with the full share link when available. Otherwise, it reports the named Markdown export
+and its local path so you can attach the file manually in the chat. The tool sends no
+WhatsApp message. Clipboard paste does not guarantee an attachment in either client.
 
 ## `handoff config`
 

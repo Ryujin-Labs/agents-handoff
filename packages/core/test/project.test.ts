@@ -669,7 +669,7 @@ describe('compose channels', () => {
     const result = await whatsappChannel.send({ ...base, destination: '+905551112233' });
     const text = decodeURIComponent((result.url ?? '').split('text=')[1] ?? '');
     assert.match(text, /Handoff for web/);
-    assert.match(text, /Sending the file next/);
+    assert.doesNotMatch(text, /Sending the file next/);
     assert.ok(!/attached/i.test(text), 'must not claim an attachment');
     assert.ok(!text.includes('##'), 'no markdown headings in a chat message');
   });
@@ -701,6 +701,53 @@ describe('compose channels', () => {
     assert.match(decodeURIComponent(result.url ?? ''), /Handoff: Rate limiting/);
   });
 
+  it('uses one email summary and exports the complete Markdown for manual attachment', async () => {
+    const result = await emailChannel.send({ ...base });
+    const body = new URL(result.url ?? '').searchParams.get('body') ?? '';
+    const summary = handoff.sections.find((section) => section.title === 'Summary')?.content.trim() ?? '';
+    assert.ok(summary);
+    assert.equal(body.split(summary).length - 1, 1, 'the summary is repeated');
+    assert.match(body, /Required actions:/);
+    assert.doesNotMatch(body, /Sending the file next|\*Rate limiting\*/);
+    assert.ok(result.exportedPath);
+    assert.equal(readFileSync(result.exportedPath, 'utf8'), VALID_HANDOFF);
+    assert.ok(!body.includes(result.exportedPath), 'the recipient got a sender-only local path');
+    assert.match(result.nextStep ?? '', /No file is attached automatically/);
+    assert.match(result.nextStep ?? '', /Choose a recipient/);
+    assert.equal(result.composed, true);
+    assert.equal(result.opened, false);
+  });
+
+  it('preserves a configured email template without appending a duplicate summary', async () => {
+    const result = await emailChannel.send({
+      ...base,
+      settings: { template: 'For {who}: {title}\n{summary}\nLiteral: $&' },
+    });
+    const body = new URL(result.url ?? '').searchParams.get('body') ?? '';
+    const summary = handoff.sections.find((section) => section.title === 'Summary')?.content.trim() ?? '';
+    assert.ok(body.startsWith(`For ${handoff.frontmatter.targets.join('/')}: ${handoff.title}`));
+    assert.equal(body.split(summary).length - 1, 1);
+    assert.match(body, /Literal: \$&/);
+    assert.match(body, /Required actions:/);
+    assert.equal(readFileSync(result.exportedPath ?? '', 'utf8'), VALID_HANDOFF);
+  });
+
+  it('stops before composing when the Markdown export cannot be written', async () => {
+    const dir = tempDir();
+    try {
+      const blocked = join(dir, 'blocked');
+      writeFileSync(blocked, 'keep this file\n');
+      const result = await emailChannel.send({ ...base, stagingDir: blocked });
+      assert.equal(result.ok, false);
+      assert.equal(result.url, undefined);
+      assert.equal(result.exportedPath, undefined);
+      assert.match(result.message, /No email draft was opened/);
+      assert.equal(readFileSync(blocked, 'utf8'), 'keep this file\n');
+    } finally {
+      removeDir(dir);
+    }
+  });
+
   it('never opens anything when open is false', async () => {
     // The suite must not launch a browser or a mail client.
     const result = await emailChannel.send({ ...base, destination: 'x@example.com' });
@@ -718,9 +765,9 @@ describe('the chat opener tells the truth about delivery', () => {
     assert.ok(!/attached/i.test(text));
   });
 
-  it('promises the file when there is no link', () => {
+  it('leaves manual attachment instructions to the sender when there is no link', () => {
     const text = chatOpener(context);
-    assert.match(text, /Sending the file next/);
+    assert.doesNotMatch(text, /Sending the file next/);
     assert.ok(!/attached/i.test(text));
   });
 

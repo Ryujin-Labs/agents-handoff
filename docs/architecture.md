@@ -251,8 +251,9 @@ difference is what a developer is agreeing to:
 
 - **local** — `file`, `clipboard`, `stdout`. Nothing leaves the machine.
 - **compose** — `whatsapp`, `email`. Opens the app with the message written; the developer
-  picks the recipients and presses send. Nothing is sent by the tool — unless the link
-  mode is `gist`, which uploads the handoff first; the option and the result say so.
+  manually attaches the exported Markdown when needed, picks the recipients and presses
+  send. Nothing is sent by the tool — unless the link mode is `gist`, which uploads the
+  handoff first; the option and the result say so.
 - **push** — `slack`, `discord`, `trello`, `github`. Sends the handoff to a third party.
   Each needs something the developer set up: a webhook for the first three, an
   authenticated `gh` for gists.
@@ -263,6 +264,15 @@ sent. Links in a message come from `shareLink`, which states who can read what i
 Bitbucket) and refuses one that would 404; `gist` says "anyone with the link". An opening
 line is shortened to fit a chat prefill by giving up the summary and then the title — never
 the link.
+
+Email uses a `mailto:` draft containing one plain summary and required-actions block. A
+`mailto:` URL cannot attach files automatically. When there is no share link, the handoff
+is exported as `.handoff/outbox/<handoff-id>.md` and the result reports its full local path.
+The developer manually attaches that file, chooses the recipients and presses send.
+WhatsApp uses a short actionable intro with the full share link when available. Without
+a link, it exports the named Markdown and reports its local path for the developer to
+attach manually in the chat. Clipboard file references are a convenience in some clients,
+never a guarantee that the file is attached.
 
 Routing (`routing.ts`) is policy: which team is reached how. `configProblems` reports what
 used to fail silently — a route to a channel that does not exist or is not configured, a

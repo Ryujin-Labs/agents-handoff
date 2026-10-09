@@ -6,9 +6,9 @@ import { which } from './which.ts';
  * The small amount of desktop integration that makes delivery feel finished.
  *
  * Printing a URL and calling it delivery is the gap between "the tool did something" and
- * "the message is on its way". Opening the link, and putting the file on the clipboard so
- * one paste attaches it, is as close to seamless as these platforms allow — none of them
- * offers a documented way to send a file on a developer's behalf.
+ * "the message is on its way". Opening a draft and revealing its file helps the developer
+ * attach it manually. A clipboard file reference is a convenience; whether a paste
+ * attaches it depends on the client. No desktop operation sends the message.
  */
 
 export interface OpenResult {
@@ -42,7 +42,7 @@ function openerFor(): { command: string; args: string[] } | null {
 }
 
 /**
- * Put a *file* on the clipboard, so one paste attaches it in a chat app.
+ * Put a *file reference* on the clipboard; some chat clients accept it as an attachment.
  *
  * Distinct from copying the file's text: pasting text into WhatsApp gives a wall of
  * markdown, while pasting a file reference attaches the document. Only macOS exposes this

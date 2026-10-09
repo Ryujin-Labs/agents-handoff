@@ -93,8 +93,8 @@ export function chatOpener(context: SendContext, shareUrl?: string): string {
           .replace(/\{(title|who|summary|url)\}/g, (_, key: string) => fields(title, snippet)[key] ?? '')
           .trim()
       : `Handoff for ${who}: ${title}.${fm.breaking ? ' Breaking change.' : ''}` +
-        `${snippet ? ` Summary: ${snippet}.` : ''}` +
-        `${url ? ` Read it here: ${url}` : ' Sending the file next.'}`;
+        `${snippet ? ` ${snippet}.` : ''}` +
+        `${url ? ` Read it here: ${url}` : ''}`;
 
   return fitWithinLimit(render, context.handoff.title, summary, CHAT_PREFILL_LIMIT);
 }
@@ -262,17 +262,20 @@ function namedCopy(context: SendContext): string | null {
  * some chat clients and silently does nothing in others, so it is offered as a bonus and
  * never as the instruction.
  */
-function stageAttachment(context: SendContext): string {
-  const file = namedCopy(context) ?? context.sourcePath;
+function stageAttachment(context: SendContext, preparedPath?: string): string {
+  const file = preparedPath ?? namedCopy(context) ?? context.sourcePath;
   if (!file) return 'Attach the handoff file before sending.';
-  if (context.open === false) return `Attach ${file} before sending.`;
+  const instruction = `Attach ${file} before sending.`;
+  if (context.open === false) return instruction;
 
-  revealFile(file);
-  if (canCopyFile()) copyFileToClipboard(file);
+  const revealed = revealFile(file);
+  const copied = canCopyFile() ? copyFileToClipboard(file) : { ok: false };
   const name = basename(file);
-  return canCopyFile()
-    ? `The file "${name}" is showing in Finder — drag it in, or try Cmd+V — then send.`
-    : `Drag "${name}" in from the file manager, then send.`;
+  const location = revealed.ok
+    ? `The file "${name}" is shown in the file manager; drag it into your draft.`
+    : 'The file manager could not be opened; use the path above to attach the file.';
+  const clipboard = copied.ok ? ' A file reference is also on the clipboard; pasting depends on your mail or chat client.' : '';
+  return `${instruction} ${location}${clipboard}`;
 }
 
 /**
@@ -604,22 +607,57 @@ export const whatsappChannel: HandoffChannel = {
   },
 };
 
-/** A `mailto:` link, with the same compose-not-send caveat as WhatsApp. */
+/** A single email preview; the unchanged Markdown export carries the full handoff. */
+function emailBody(context: SendContext, shareUrl?: string): string {
+  const fm = context.handoff.frontmatter;
+  const summary = findSection(context.handoff.sections, 'Summary')?.content.trim() ?? '';
+  const actions = findSection(context.handoff.sections, 'Required Actions')?.content.trim() ?? '';
+  const template = context.settings?.template;
+  const fields: Record<string, string> = {
+    title: context.handoff.title,
+    who: fm.targets.join('/') || 'you',
+    summary: truncate(summary, 600),
+    url: shareUrl ?? '',
+  };
+  const lines = template
+    ? [template.replace(/\{(title|who|summary|url)\}/g, (_, key: string) => fields[key] ?? '').trim()]
+    : [
+        context.handoff.title,
+        `From: ${fm.source.project}${fm.source.branch ? ` (${fm.source.branch})` : ''}`,
+        `For: ${fm.targets.join(', ') || 'any consumer'}${fm.breaking ? ' · BREAKING CHANGE' : ''}`,
+      ];
+  if (summary && !template?.includes('{summary}')) lines.push('', truncate(summary, 600));
+  if (actions) lines.push('', 'Required actions:', truncate(actions, 900));
+  const preview = truncate(lines.join('\n'), 1400);
+  // A link must survive preview truncation in full, including a custom template.
+  return shareUrl && !preview.includes(shareUrl) ? `${preview}\n\nFull handoff: ${shareUrl}` : preview;
+}
+
+/** A `mailto:` draft. The portable scheme cannot attach a Markdown file. */
 export const emailChannel: HandoffChannel = {
   id: 'email',
   kind: 'compose',
-  description: 'Open your mail client with the handoff ready to send.',
+  description: 'Prepare an email draft and export the handoff for manual attachment.',
   isAvailable: () => true,
   async send(context: SendContext): Promise<SendResult> {
     const to = (context.destination ?? context.settings?.to ?? '').trim();
     const subject = `Handoff: ${context.handoff.title}`;
     const link = await shareLink(context);
-    // A mail body survives more text than a chat link, but the document is still the
-    // attachment: a client that truncates a long mailto body does it silently.
-    const body = `${chatOpener(context, link.url)}\n\n${truncate(chatSummary(context, 900), 1400)}`;
+    const body = emailBody(context, link.url);
     const url = `mailto:${encodeURIComponent(to)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
 
-    const nextStep = link.url ? 'Press send.' : stageAttachment(context);
+    const exportedPath = link.url ? undefined : namedCopy(context);
+    if (!link.url && !exportedPath) {
+      return {
+        ok: false,
+        destination: to || 'email',
+        message: 'Could not export the Markdown handoff. No email draft was opened; choose a writable outbox and try again.',
+      };
+    }
+    const recipient = to ? '' : 'Choose a recipient. ';
+    const nextStep = link.url
+      ? `${recipient}Review the draft, then press send.`
+      : `No file is attached automatically. ${stageAttachment(context, exportedPath ?? undefined)} ${recipient}Review the draft, then press send.`;
     const opened = context.open === false ? { ok: false } : openExternal(url);
     const trouble = link.error ? ` (no link: ${link.error})` : '';
 
@@ -634,6 +672,7 @@ export const emailChannel: HandoffChannel = {
         ? `Opened a draft${to ? ` to ${to}` : ''}.${trouble} ${nextStep}`
         : `Open this to compose: ${url}${trouble}\n${nextStep}`,
     };
+    if (exportedPath) result.exportedPath = exportedPath;
     if (link.url) result.shareUrl = link.url;
     if (link.visibility) result.shareVisibility = link.visibility;
     if (link.uploaded) result.uploaded = link.uploaded;
