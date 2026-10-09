@@ -1,8 +1,8 @@
 # Agents Handoff
 
 [![CI](https://github.com/Ryujin-Labs/agents-handoff/actions/workflows/ci.yml/badge.svg)](https://github.com/Ryujin-Labs/agents-handoff/actions/workflows/ci.yml)
-[![npm](https://img.shields.io/npm/v/agents-handoff?label=agents-handoff)](https://www.npmjs.com/package/agents-handoff)
-[![npm](https://img.shields.io/npm/v/agents-handoff-mcp?label=agents-handoff-mcp)](https://www.npmjs.com/package/agents-handoff-mcp)
+[![npm](https://img.shields.io/npm/v/ryujin-handoff?label=ryujin-handoff)](https://www.npmjs.com/package/ryujin-handoff)
+[![npm](https://img.shields.io/npm/v/ryujin-handoff-mcp?label=ryujin-handoff-mcp)](https://www.npmjs.com/package/ryujin-handoff-mcp)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
 **Git tells you what code changed. Nothing tells the next developer what that change means for them.**
@@ -57,14 +57,14 @@ The same two skills and the same MCP tools, packaged for Codex. Ask it the same 
 Claude Code, without the plugin:
 
 ```bash
-claude mcp add agents-handoff -- npx -y agents-handoff-mcp
+claude mcp add agents-handoff -- npx -y ryujin-handoff-mcp
 ```
 
 Claude Desktop (`claude_desktop_config.json`), Cursor (`.cursor/mcp.json`) and other
 clients that use the same shape:
 
 ```json
-{ "mcpServers": { "agents-handoff": { "command": "npx", "args": ["-y", "agents-handoff-mcp"] } } }
+{ "mcpServers": { "agents-handoff": { "command": "npx", "args": ["-y", "ryujin-handoff-mcp"] } } }
 ```
 
 Codex without the plugin (`~/.codex/config.toml`):
@@ -72,7 +72,7 @@ Codex without the plugin (`~/.codex/config.toml`):
 ```toml
 [mcp_servers.agents-handoff]
 command = "npx"
-args = ["-y", "agents-handoff-mcp"]
+args = ["-y", "ryujin-handoff-mcp"]
 ```
 
 Nothing is installed globally: the client fetches the server on first use.
@@ -80,7 +80,7 @@ Nothing is installed globally: the client fetches the server on first use.
 ### The CLI
 
 ```bash
-npm i -g agents-handoff
+npm i -g ryujin-handoff
 handoff            # an interactive menu
 handoff init       # set up this repository
 ```

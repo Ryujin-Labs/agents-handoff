@@ -12,7 +12,7 @@ import {
   validateHandoff,
   VERSION,
   type HandoffBody,
-} from 'agents-handoff-core';
+} from 'ryujin-handoff-core';
 import { z } from 'zod';
 import type { Boundary } from '../paths.ts';
 import { assertWithinBoundary, projectDir } from '../paths.ts';

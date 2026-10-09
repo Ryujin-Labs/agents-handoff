@@ -2,7 +2,7 @@
 name: "handoff-receive"
 description: "Read a HANDOFF.md another team sent, work out what it means for this repository, and plan the work. Use when the developer shares a handoff file (often in Downloads) or pastes one, or asks what a teammate's handoff needs here."
 argument-hint: "<path-to-handoff.md> [--as target]"
-allowed-tools: "Bash(handoff *) Bash(npx --yes agents-handoff *) Read Grep Glob"
+allowed-tools: "Bash(handoff *) Bash(npx --yes ryujin-handoff *) Read Grep Glob"
 ---
 
 # Receive a handoff

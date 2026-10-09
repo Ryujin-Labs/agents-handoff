@@ -1,4 +1,4 @@
-import { VERSION } from 'agents-handoff-core';
+import { VERSION } from 'ryujin-handoff-core';
 import { parse, UsageError, type OptionSpec, type ParsedArgs } from './args.ts';
 import { configCommand, configOptions } from './commands/config.ts';
 import { contextCommand, contextOptions } from './commands/context.ts';

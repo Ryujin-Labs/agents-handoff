@@ -664,7 +664,7 @@ describe('generated Claude Code skills', () => {
   // `argument-hint: [target] [note]` once did exactly that.
   it('have frontmatter that parses, with the fields Claude Code reads', async () => {
     const { parse } = await import('yaml');
-    const { generateSkills } = await import('agents-handoff-claude-code');
+    const { generateSkills } = await import('ryujin-handoff-claude-code');
     for (const skill of generateSkills()) {
       const block = /^---\n([\s\S]*?)\n---\n/.exec(skill.contents)?.[1] ?? '';
       const meta = parse(block) as Record<string, unknown>;
@@ -715,7 +715,7 @@ describe('handoff install mcp without Claude Desktop', () => {
     });
     assert.equal(result.status, 1);
     assert.match(result.stderr, /Nothing was written/);
-    assert.match(result.stderr, /claude mcp add agents-handoff -- npx -y agents-handoff-mcp/);
+    assert.match(result.stderr, /claude mcp add agents-handoff -- npx -y ryujin-handoff-mcp/);
     assert.deepEqual(readdirSync(home), [], 'created a Claude Desktop directory for an app that is not there');
   });
 });

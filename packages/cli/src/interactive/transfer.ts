@@ -1,6 +1,6 @@
 import { existsSync, readdirSync, statSync } from 'node:fs';
 import { join, relative } from 'node:path';
-import { handoffDirectory, isSupportedHandoff, loadConfig, readTextIfExists } from 'agents-handoff-core';
+import { handoffDirectory, isSupportedHandoff, loadConfig, readTextIfExists } from 'ryujin-handoff-core';
 import type { ParsedArgs } from '../args.ts';
 import { select, text, type Choice } from '../prompt/index.ts';
 import { err, out, style } from '../ui.ts';

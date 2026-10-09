@@ -9,7 +9,7 @@ import {
   type HandoffConfig,
   type LoadedConfig,
   type StoredHandoff,
-} from 'agents-handoff-core';
+} from 'ryujin-handoff-core';
 import { multiselect, select, text, type Choice } from '../prompt/index.ts';
 import { style } from '../ui.ts';
 

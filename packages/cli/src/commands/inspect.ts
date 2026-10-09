@@ -8,7 +8,7 @@ import {
   serializeHandoff,
   validateHandoffSource,
   type Direction,
-} from 'agents-handoff-core';
+} from 'ryujin-handoff-core';
 import { boolOption, stringOption, type OptionSpec, type ParsedArgs } from '../args.ts';
 import { displayPath, err, heading, jsonOut, keyValue, out, printValidation, style } from '../ui.ts';
 

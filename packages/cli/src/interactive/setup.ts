@@ -1,7 +1,7 @@
 import { basename } from 'node:path';
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
-import { CONFIG_FILENAME, Git, SUGGESTED_TARGETS } from 'agents-handoff-core';
+import { CONFIG_FILENAME, Git, SUGGESTED_TARGETS } from 'ryujin-handoff-core';
 import type { ParsedArgs } from '../args.ts';
 import { confirm, multiselect, select, text, type Choice } from '../prompt/index.ts';
 import { out, style } from '../ui.ts';

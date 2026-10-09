@@ -1,8 +1,8 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { homedir, platform } from 'node:os';
 import { dirname, join } from 'node:path';
-import { readSkills } from 'agents-handoff-claude-code';
-import { Git, readJsonIfExists } from 'agents-handoff-core';
+import { readSkills } from 'ryujin-handoff-claude-code';
+import { Git, readJsonIfExists } from 'ryujin-handoff-core';
 import { boolOption, type OptionSpec, type ParsedArgs } from '../args.ts';
 import { displayPath, err, heading, out, style } from '../ui.ts';
 
@@ -21,7 +21,7 @@ export interface InstallResult {
 export function mcpServerEntry(): { command: string; args: string[] } {
   // `npx -y` means a developer never installs anything globally: the client fetches the
   // server on first use and keeps it cached. That is the whole point of this path.
-  return { command: 'npx', args: ['-y', 'agents-handoff-mcp'] };
+  return { command: 'npx', args: ['-y', 'ryujin-handoff-mcp'] };
 }
 
 /**
@@ -44,7 +44,7 @@ export function installClaudeCode(
   if (skills.length === 0) {
     return {
       ok: false,
-      messages: [`${style.red('error')} no bundled skills found; is agents-handoff-claude-code installed?`],
+      messages: [`${style.red('error')} no bundled skills found; is ryujin-handoff-claude-code installed?`],
     };
   }
 
@@ -171,7 +171,7 @@ function installMcp(args: ParsedArgs, cwd: string): number {
   // scratch would "install" into an app that is not there, and say it worked.
   if (!existsSync(dirname(path))) {
     err(`Claude Desktop does not seem to be installed here (no ${displayPath(dirname(path), cwd)}). Nothing was written.`);
-    err(`For Claude Code: claude mcp add agents-handoff -- npx -y agents-handoff-mcp`);
+    err(`For Claude Code: claude mcp add agents-handoff -- npx -y ryujin-handoff-mcp`);
     err(`For any other MCP client, add this to its configuration:\n\n${snippet}`);
     return 1;
   }
@@ -184,7 +184,7 @@ function installMcp(args: ParsedArgs, cwd: string): number {
   out(`Restart Claude Desktop. Your agent then has the handoff tools, and ${style.cyan('/handoff')}`);
   out('appears as a prompt — no terminal, and nothing installed globally.');
   out();
-  out(style.dim('For Claude Code instead: claude mcp add agents-handoff -- npx -y agents-handoff-mcp'));
+  out(style.dim('For Claude Code instead: claude mcp add agents-handoff -- npx -y ryujin-handoff-mcp'));
   out(style.dim('For any other MCP client: handoff install mcp --print'));
   return result.ok ? 0 : 1;
 }

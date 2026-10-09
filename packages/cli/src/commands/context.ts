@@ -4,7 +4,7 @@ import {
   loadConfig,
   parseTargets,
   renderBrief,
-} from 'agents-handoff-core';
+} from 'ryujin-handoff-core';
 import {
   boolOption,
   intOption,

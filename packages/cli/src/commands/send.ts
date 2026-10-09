@@ -10,7 +10,7 @@ import {
   HandoffStore,
   loadConfig,
   validateHandoff,
-} from 'agents-handoff-core';
+} from 'ryujin-handoff-core';
 import { boolOption, stringOption, UsageError, type OptionSpec, type ParsedArgs } from '../args.ts';
 import { err, out, style } from '../ui.ts';
 

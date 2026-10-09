@@ -1,4 +1,4 @@
-# agents-handoff-core
+# ryujin-handoff-core
 
 Agent-independent core of [Agents Handoff](https://github.com/Ryujin-Labs/agents-handoff):
 the `HANDOFF.md` schema, Markdown parsing and serialization, git inspection, context
@@ -17,7 +17,7 @@ import {
   parseHandoff,
   validateHandoff,
   serializeHandoff,
-} from 'agents-handoff-core';
+} from 'ryujin-handoff-core';
 
 const loaded = loadConfig(process.cwd());
 const context = collectChangeContext({ cwd: process.cwd(), loaded, targets: ['mobile'] });

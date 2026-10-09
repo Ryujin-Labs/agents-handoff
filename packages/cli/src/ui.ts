@@ -1,6 +1,6 @@
 import { sessionIO } from './session.ts';
 import { relative } from 'node:path';
-import type { ValidationResult } from 'agents-handoff-core';
+import type { ValidationResult } from 'ryujin-handoff-core';
 
 /**
  * Colour is opt-out via NO_COLOR and automatically off when stdout is not a TTY, so piping

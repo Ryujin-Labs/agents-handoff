@@ -8,7 +8,7 @@ import {
   renderBrief,
   type CollectOptions,
   type LoadedConfig,
-} from 'agents-handoff-core';
+} from 'ryujin-handoff-core';
 import { z } from 'zod';
 import type { Boundary } from '../paths.ts';
 import { contains, PathRefused, projectDir, realPath } from '../paths.ts';

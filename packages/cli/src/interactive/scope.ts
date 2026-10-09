@@ -1,4 +1,4 @@
-import { Git, loadConfig, revisionFor, type Revision } from 'agents-handoff-core';
+import { Git, loadConfig, revisionFor, type Revision } from 'ryujin-handoff-core';
 import { select, text, type Choice } from '../prompt/index.ts';
 
 /** The revision flags an interactive answer resolves to. */

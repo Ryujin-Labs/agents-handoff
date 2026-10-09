@@ -11,11 +11,11 @@ import {
   removeFromGitignore,
   writeConfig,
   type HandoffConfig,
-} from 'agents-handoff-core';
+} from 'ryujin-handoff-core';
 import { boolOption, stringOption, type OptionSpec, type ParsedArgs } from '../args.ts';
 import { displayPath, heading, keyValue, out, style } from '../ui.ts';
 import { installClaudeCode } from './install.ts';
-import { HandoffStore } from 'agents-handoff-core';
+import { HandoffStore } from 'ryujin-handoff-core';
 
 export const initOptions: Record<string, OptionSpec> = {
   project: { type: 'string', describe: 'Logical name for this codebase (default: directory name)', placeholder: '<name>' },

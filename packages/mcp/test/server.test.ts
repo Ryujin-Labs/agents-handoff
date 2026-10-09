@@ -14,6 +14,7 @@ import {
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { after, before, describe, it } from 'node:test';
+import { parseHandoff } from 'ryujin-handoff-core';
 import { makeRepo, SERVER_BIN, TestClient, writeArgs } from './client.ts';
 
 const repo = makeRepo();
@@ -200,7 +201,10 @@ describe('handoff_write', () => {
     const document = readFileSync(result.structured?.['path'] as string, 'utf8');
     assert.match(document, /branch: feature\/scopes/);
     assert.match(document, /^handoff_version: 1$/m);
-    assert.match(document, /commit: [0-9a-f]{7,}/);
+    // Numeric-only short SHAs are quoted by YAML to preserve their string type.
+    // Check the parsed value against git rather than depending on YAML's spelling.
+    const commit = execFileSync('git', ['rev-parse', '--short', 'HEAD'], { cwd: repo, encoding: 'utf8' }).trim();
+    assert.equal(parseHandoff(document).frontmatter.source.commit, commit);
     assert.match(document, /generated_by: .*\(mcp\)/);
   });
 

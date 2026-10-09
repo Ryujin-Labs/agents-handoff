@@ -23,7 +23,7 @@ One install brings both halves:
 - the skills, as `/agents-handoff:handoff` and `/agents-handoff:handoff-receive` — Claude
   Code namespaces every plugin skill with the plugin's name;
 - the MCP server, declared in the plugin's `.mcp.json` and started with `npx -y
-  agents-handoff-mcp`. Nothing is installed globally.
+  ryujin-handoff-mcp`. Nothing is installed globally.
 
 With the tools present you can also skip the slash command and just ask: *"write a handoff
 for the mobile team"*.
@@ -48,8 +48,8 @@ with no extra setup. Use `--force` to overwrite locally-edited copies, `--user` 
 into `~/.claude/skills` for yourself across every project.
 
 Project skills drive the `handoff` CLI, so it needs to be available: `npm i -g
-agents-handoff`, or the skills fall back to `npx --yes agents-handoff`. Add the MCP server
-too (`claude mcp add agents-handoff -- npx -y agents-handoff-mcp`) and the skills use its
+ryujin-handoff`, or the skills fall back to `npx --yes ryujin-handoff`. Add the MCP server
+too (`claude mcp add agents-handoff -- npx -y ryujin-handoff-mcp`) and the skills use its
 tools instead.
 
 ## Writing a handoff
@@ -107,7 +107,7 @@ unless you have already told it to go ahead.
 | `description` | trigger phrasing | How Claude decides the skill is relevant |
 | `argument-hint` | `[target] [note]` | Autocomplete hint |
 | `disable-model-invocation` | not set | Most requests arrive in the developer's own words ("write a handoff for mobile"), so Claude may open the skill for them — the description limits it to an explicit request |
-| `allowed-tools` | `handoff`: `Bash(handoff *) Bash(npx --yes agents-handoff *) Bash(git diff *) Bash(git log *) Read Grep Glob Write`; `handoff-receive`: the same without the `git` commands and `Write` | Runs the CLI and reads code without a permission prompt each turn. The MCP tools are not listed: Claude Code asks for them the first time, like any MCP tool |
+| `allowed-tools` | `handoff`: `Bash(handoff *) Bash(npx --yes ryujin-handoff *) Bash(git diff *) Bash(git log *) Read Grep Glob Write`; `handoff-receive`: the same without the `git` commands and `Write` | Runs the CLI and reads code without a permission prompt each turn. The MCP tools are not listed: Claude Code asks for them the first time, like any MCP tool |
 
 `$ARGUMENTS` is used rather than indexed placeholders so all three argument shapes work.
 

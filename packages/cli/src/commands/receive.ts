@@ -10,7 +10,7 @@ import {
   parseHandoff,
   renderReceiveBrief,
   validateHandoff,
-} from 'agents-handoff-core';
+} from 'ryujin-handoff-core';
 import { boolOption, stringOption, type OptionSpec, type ParsedArgs } from '../args.ts';
 import { displayPath, err, jsonOut, out, printValidation, style } from '../ui.ts';
 

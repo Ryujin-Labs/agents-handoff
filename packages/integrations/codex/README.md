@@ -19,6 +19,6 @@ Then, in a repository where you just finished a change, ask Codex:
 
 Both skills are generated from the same method as the MCP prompts and the Claude Code
 skills (`packages/core/src/guidance/`), and run the MCP server with
-`npx -y agents-handoff-mcp`. Requires Node.js 20.10 or later.
+`npx -y ryujin-handoff-mcp`. Requires Node.js 20.10 or later.
 
 MIT

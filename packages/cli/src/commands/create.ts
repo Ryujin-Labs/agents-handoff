@@ -12,7 +12,7 @@ import {
   uniqueId,
   validateHandoff,
   VERSION,
-} from 'agents-handoff-core';
+} from 'ryujin-handoff-core';
 import {
   boolOption,
   intOption,

@@ -11,7 +11,7 @@ import {
   removeFromGitignore,
   SUGGESTED_TARGETS,
   writeConfig,
-} from 'agents-handoff-core';
+} from 'ryujin-handoff-core';
 import { boolOption, stringOption, type OptionSpec, type ParsedArgs } from '../args.ts';
 import { displayPath, heading, jsonOut, keyValue, out, style } from '../ui.ts';
 

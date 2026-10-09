@@ -22,7 +22,9 @@
     "test:only": "node --test packages/core/dist/test/*.test.js packages/mcp/dist/test/*.test.js packages/cli/dist/test/*.test.js",
     "handoff": "node packages/cli/dist/src/bin.js",
     "skills": "npm run build && node packages/integrations/claude-code/scripts/write-skills.mjs",
-    "release:check": "npm run build && npm run test:only && node packages/integrations/claude-code/scripts/write-skills.mjs --check && for f in examples/*/HANDOFF.md; do node packages/cli/dist/src/bin.js validate \"$f\" --strict || exit 1; done && npm pack --dry-run --workspaces > /dev/null"
+    "release:check": "npm run build && npm run test:only && node packages/integrations/claude-code/scripts/write-skills.mjs --check && for f in examples/*/HANDOFF.md; do node packages/cli/dist/src/bin.js validate \"$f\" --strict || exit 1; done && npm pack --dry-run --workspaces > /dev/null",
+    "release:prepare": "node scripts/release.mjs --check",
+    "release:publish": "node scripts/release.mjs --publish"
   },
   "devDependencies": {
     "@types/node": "^22.10.2",

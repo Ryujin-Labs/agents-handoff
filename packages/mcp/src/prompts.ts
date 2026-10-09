@@ -1,4 +1,4 @@
-import { renderAuthoringGuide, renderReceivingGuide } from 'agents-handoff-core';
+import { renderAuthoringGuide, renderReceivingGuide } from 'ryujin-handoff-core';
 import { z } from 'zod';
 
 export const handoffPromptArgs = z.object({
@@ -14,7 +14,7 @@ export const handoffPromptArgs = z.object({
  * How this surface performs each step of the method.
  *
  * Only the mechanics live here. The judgment — what to read for, how to decide `breaking`,
- * what `Required Actions` is for — comes from `agents-handoff-core`, which the Claude Code
+ * what `Required Actions` is for — comes from `ryujin-handoff-core`, which the Claude Code
  * skill renders from too. Neither surface owns the methodology.
  */
 const AUTHORING_MECHANICS = {

@@ -1,5 +1,5 @@
 import { McpServer } from '@modelcontextprotocol/server';
-import { VERSION } from 'agents-handoff-core';
+import { VERSION } from 'ryujin-handoff-core';
 import type { Boundary } from './paths.ts';
 import { handoffPrompt, handoffPromptArgs, receivePrompt, receivePromptArgs } from './prompts.ts';
 import {

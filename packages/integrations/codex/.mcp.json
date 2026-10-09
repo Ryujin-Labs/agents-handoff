@@ -2,7 +2,7 @@
   "mcpServers": {
     "agents-handoff": {
       "command": "npx",
-      "args": ["-y", "agents-handoff-mcp"]
+      "args": ["-y", "ryujin-handoff-mcp"]
     }
   }
 }

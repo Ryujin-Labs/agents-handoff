@@ -23,14 +23,14 @@ const tabs = [
     id: 'mcp',
     label: 'Any MCP client',
     lang: 'json',
-    code: '{\n  "mcpServers": {\n    "agents-handoff": { "command": "npx", "args": ["-y", "agents-handoff-mcp"] }\n  }\n}',
+    code: '{\n  "mcpServers": {\n    "agents-handoff": { "command": "npx", "args": ["-y", "ryujin-handoff-mcp"] }\n  }\n}',
     note: 'Claude Desktop, Cursor and other clients that use this shape. Nothing is installed globally: the client fetches the server on first use.',
   },
   {
     id: 'cli',
     label: 'CLI',
     lang: 'sh',
-    code: 'npm i -g agents-handoff\nhandoff init     # set up this repository\nhandoff          # an interactive menu',
+    code: 'npm i -g ryujin-handoff\nhandoff init     # set up this repository\nhandoff          # an interactive menu',
     note: 'For humans and scripts. Interactive in a terminal, never when an agent drives it.',
   },
 ] as const;

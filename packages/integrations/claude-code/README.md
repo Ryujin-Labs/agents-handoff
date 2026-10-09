@@ -1,4 +1,4 @@
-# agents-handoff-claude-code
+# ryujin-handoff-claude-code
 
 Claude Code integration for [Agents Handoff](https://github.com/Ryujin-Labs/agents-handoff).
 
@@ -25,7 +25,7 @@ As project skills, committed with your repository so the whole team gets `/hando
 `/handoff-receive`:
 
 ```bash
-npm i -g agents-handoff
+npm i -g ryujin-handoff
 handoff install claude-code
 ```
 
@@ -35,7 +35,7 @@ Project skills drive the `handoff` CLI, or the MCP tools when they are connected
 
 Documented extension points only: a `.claude-plugin/plugin.json` manifest, a `.mcp.json`
 declaring the MCP server, and `skills/<name>/SKILL.md` files generated from the shared method in
-`agents-handoff-core`. Nothing reads Claude Code's internal state or conversation
+`ryujin-handoff-core`. Nothing reads Claude Code's internal state or conversation
 transcript; the skill asks the agent to contribute what it already remembers about building
 the change, which works in any agent rather than just this one.
 

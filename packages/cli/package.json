@@ -1,5 +1,5 @@
 {
-  "name": "agents-handoff",
+  "name": "ryujin-handoff",
   "version": "0.1.0",
   "description": "Agents Handoff: create, validate, inspect and receive HANDOFF.md software-change handoffs from the command line.",
   "license": "MIT",
@@ -34,8 +34,8 @@
     "prepack": "tsc -b"
   },
   "dependencies": {
-    "agents-handoff-core": "^0.1.0",
-    "agents-handoff-claude-code": "^0.1.0"
+    "ryujin-handoff-core": "^0.1.0",
+    "ryujin-handoff-claude-code": "^0.1.0"
   },
   "keywords": [
     "handoff",
@@ -46,5 +46,9 @@
     "developer-tools",
     "markdown",
     "protocol"
-  ]
+  ],
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  }
 }

@@ -1,6 +1,6 @@
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
-import { CONFIG_FILENAME, Git, handoffDirectory, HandoffStore, loadConfig, VERSION } from 'agents-handoff-core';
+import { CONFIG_FILENAME, Git, handoffDirectory, HandoffStore, loadConfig, VERSION } from 'ryujin-handoff-core';
 import { select, type Choice } from '../prompt/index.ts';
 import { out, style } from '../ui.ts';
 import { configCommand } from '../commands/config.ts';

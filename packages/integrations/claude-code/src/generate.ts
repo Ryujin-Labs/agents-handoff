@@ -1,4 +1,4 @@
-import { renderAuthoringGuide, renderReceivingGuide } from 'agents-handoff-core';
+import { renderAuthoringGuide, renderReceivingGuide } from 'ryujin-handoff-core';
 
 /**
  * The Claude Code skills, rendered from the shared methodology.
@@ -9,7 +9,7 @@ import { renderAuthoringGuide, renderReceivingGuide } from 'agents-handoff-core'
  * to learn how to do its job.
  *
  * Everything below is *mechanics*: which command to run, which tool grant it needs. The
- * judgment lives in `agents-handoff-core`, and the MCP prompt renders from the same place.
+ * judgment lives in `ryujin-handoff-core`, and the MCP prompt renders from the same place.
  */
 
 const AUTHORING_MECHANICS = {
@@ -19,7 +19,7 @@ const AUTHORING_MECHANICS = {
 handoff context --target <target> --note "<note>"
 \`\`\`
 
-If \`handoff\` is not on PATH, use \`npx --yes agents-handoff context ...\`. If neither works, tell the developer to run \`npm i -g agents-handoff\` — or to connect the MCP server, which needs no install — and stop.
+If \`handoff\` is not on PATH, use \`npx --yes ryujin-handoff context ...\`. If neither works, tell the developer to run \`npm i -g ryujin-handoff\` — or to connect the MCP server, which needs no install — and stop.
 
 Useful flags when the work is not simply "this branch":
 
@@ -142,7 +142,7 @@ export function generateSkills(): GeneratedSkill[] {
           'Write a HANDOFF.md about a software change the developer finished, for another team and their coding agent. Use when the developer asks to write, create or send a handoff, or to tell another team (mobile, web, frontend, backend, sdk, devops...) about a change; never on your own initiative.',
         'argument-hint': '[target] [note]',
         'allowed-tools':
-          'Bash(handoff *) Bash(npx --yes agents-handoff *) Bash(git diff *) Bash(git log *) Read Grep Glob Write',
+          'Bash(handoff *) Bash(npx --yes ryujin-handoff *) Bash(git diff *) Bash(git log *) Read Grep Glob Write',
       })}\n\n# Write a handoff\n\n${authoring}`,
     },
     {
@@ -152,7 +152,7 @@ export function generateSkills(): GeneratedSkill[] {
         description:
           "Read a HANDOFF.md another team sent, work out what it means for this repository, and plan the work. Use when the developer shares a handoff file (often in Downloads) or pastes one, or asks what a teammate's handoff needs here.",
         'argument-hint': '<path-to-handoff.md> [--as target]',
-        'allowed-tools': 'Bash(handoff *) Bash(npx --yes agents-handoff *) Read Grep Glob',
+        'allowed-tools': 'Bash(handoff *) Bash(npx --yes ryujin-handoff *) Read Grep Glob',
       })}\n\n# Receive a handoff\n\n${receiving}`,
     },
   ];

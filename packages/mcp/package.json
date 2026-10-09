@@ -1,5 +1,5 @@
 {
-  "name": "agents-handoff-mcp",
+  "name": "ryujin-handoff-mcp",
   "version": "0.1.0",
   "description": "MCP server for Agents Handoff: lets any coding agent read change context and write a HANDOFF.md without a terminal.",
   "license": "MIT",
@@ -40,8 +40,12 @@
     "prepack": "tsc -b"
   },
   "dependencies": {
-    "agents-handoff-core": "^0.1.0",
+    "ryujin-handoff-core": "^0.1.0",
     "@modelcontextprotocol/server": "^2.0.0",
     "zod": "^4.0.0"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
   }
 }

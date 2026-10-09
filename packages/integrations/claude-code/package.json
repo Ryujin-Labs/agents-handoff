@@ -1,5 +1,5 @@
 {
-  "name": "agents-handoff-claude-code",
+  "name": "ryujin-handoff-claude-code",
   "version": "0.1.0",
   "description": "Claude Code integration for Agents Handoff: the /handoff and /handoff-receive skills, as a plugin and as installable project skills.",
   "license": "MIT",
@@ -41,6 +41,10 @@
     "prepack": "tsc -b"
   },
   "dependencies": {
-    "agents-handoff-core": "^0.1.0"
+    "ryujin-handoff-core": "^0.1.0"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
   }
 }

@@ -1,5 +1,5 @@
 {
-  "name": "agents-handoff-core",
+  "name": "ryujin-handoff-core",
   "version": "0.1.0",
   "description": "Core of the Agents Handoff protocol: schema, Markdown format, git context collection, validation, storage.",
   "license": "MIT",
@@ -46,5 +46,9 @@
   },
   "dependencies": {
     "yaml": "^2.6.1"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
   }
 }

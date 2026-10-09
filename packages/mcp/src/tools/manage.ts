@@ -21,7 +21,7 @@ import {
   validateHandoffSource,
   writeConfig,
   type StoredHandoff,
-} from 'agents-handoff-core';
+} from 'ryujin-handoff-core';
 import { z } from 'zod';
 import type { Boundary } from '../paths.ts';
 import { assertWithinBoundary, contains, insideProject, PathRefused, projectDir, realPath } from '../paths.ts';

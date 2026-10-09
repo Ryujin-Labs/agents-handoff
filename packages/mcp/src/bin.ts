@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { StdioServerTransport } from '@modelcontextprotocol/server/stdio';
-import { VERSION } from 'agents-handoff-core';
+import { VERSION } from 'ryujin-handoff-core';
 import { boundaryFrom } from './paths.ts';
 import { createServer } from './server.ts';
 

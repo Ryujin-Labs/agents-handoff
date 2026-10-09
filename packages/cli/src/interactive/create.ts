@@ -6,7 +6,7 @@ import {
   loadConfig,
   scaffoldHandoff,
   truncate,
-} from 'agents-handoff-core';
+} from 'ryujin-handoff-core';
 import type { ParsedArgs } from '../args.ts';
 import { confirm, select, text } from '../prompt/index.ts';
 import { err, out, style } from '../ui.ts';

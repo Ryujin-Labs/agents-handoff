@@ -2,7 +2,7 @@
 name: "handoff"
 description: "Write a HANDOFF.md about a software change the developer finished, for another team and their coding agent. Use when the developer asks to write, create or send a handoff, or to tell another team (mobile, web, frontend, backend, sdk, devops...) about a change; never on your own initiative."
 argument-hint: "[target] [note]"
-allowed-tools: "Bash(handoff *) Bash(npx --yes agents-handoff *) Bash(git diff *) Bash(git log *) Read Grep Glob Write"
+allowed-tools: "Bash(handoff *) Bash(npx --yes ryujin-handoff *) Bash(git diff *) Bash(git log *) Read Grep Glob Write"
 ---
 
 # Write a handoff
@@ -29,7 +29,7 @@ Run this first:
 handoff context --target <target> --note "<note>"
 ```
 
-If `handoff` is not on PATH, use `npx --yes agents-handoff context ...`. If neither works, tell the developer to run `npm i -g agents-handoff` — or to connect the MCP server, which needs no install — and stop.
+If `handoff` is not on PATH, use `npx --yes ryujin-handoff context ...`. If neither works, tell the developer to run `npm i -g ryujin-handoff` — or to connect the MCP server, which needs no install — and stop.
 
 Useful flags when the work is not simply "this branch":
 

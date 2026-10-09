@@ -1,6 +1,6 @@
 import { readFileSync, statSync } from 'node:fs';
 import { relative } from 'node:path';
-import { Git, loadConfig, revisionFor } from 'agents-handoff-core';
+import { Git, loadConfig, revisionFor } from 'ryujin-handoff-core';
 import { z } from 'zod';
 import type { Boundary } from '../paths.ts';
 import { holdsCredential, insideProject, isSecretish, projectDir } from '../paths.ts';

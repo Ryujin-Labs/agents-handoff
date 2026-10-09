@@ -1,4 +1,4 @@
-# agents-handoff-mcp
+# ryujin-handoff-mcp
 
 MCP server for [Agents Handoff](https://github.com/Ryujin-Labs/agents-handoff). It lets a
 coding agent read change context, read the code behind it, write a validated `HANDOFF.md`,
@@ -10,13 +10,13 @@ globally.
 Claude Code:
 
 ```bash
-claude mcp add agents-handoff -- npx -y agents-handoff-mcp
+claude mcp add agents-handoff -- npx -y ryujin-handoff-mcp
 ```
 
 Claude Desktop, Cursor, or any client that uses the same shape:
 
 ```json
-{ "mcpServers": { "agents-handoff": { "command": "npx", "args": ["-y", "agents-handoff-mcp"] } } }
+{ "mcpServers": { "agents-handoff": { "command": "npx", "args": ["-y", "ryujin-handoff-mcp"] } } }
 ```
 
 Codex (`~/.codex/config.toml`):
@@ -24,7 +24,7 @@ Codex (`~/.codex/config.toml`):
 ```toml
 [mcp_servers.agents-handoff]
 command = "npx"
-args = ["-y", "agents-handoff-mcp"]
+args = ["-y", "ryujin-handoff-mcp"]
 ```
 
 Pass `--root /path/to/repo` in `args` to pin the server to one tree.

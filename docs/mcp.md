@@ -1,6 +1,6 @@
 # MCP server
 
-`agents-handoff-mcp` gives any MCP-speaking agent the whole handoff loop — collect, read,
+`ryujin-handoff-mcp` gives any MCP-speaking agent the whole handoff loop — collect, read,
 write, deliver, receive — without a terminal. It runs over stdio and is fetched on first use
 by `npx`, so nothing is installed globally.
 
@@ -8,20 +8,20 @@ by `npx`, so nothing is installed globally.
 
 | Client | |
 |---|---|
-| Claude Code | `claude mcp add agents-handoff -- npx -y agents-handoff-mcp`, or install the plugin, which declares the server for you |
+| Claude Code | `claude mcp add agents-handoff -- npx -y ryujin-handoff-mcp`, or install the plugin, which declares the server for you |
 | Claude Desktop | `handoff install mcp`, or add the JSON below to `claude_desktop_config.json` |
 | Cursor | the JSON below in `.cursor/mcp.json` (project) or `~/.cursor/mcp.json` |
 | Codex | `codex plugin marketplace add Ryujin-Labs/agents-handoff`, then `codex plugin add agents-handoff@agents-handoff` — or the TOML below in `~/.codex/config.toml` |
 | anything else | `handoff install mcp --print` prints the entry |
 
 ```json
-{ "mcpServers": { "agents-handoff": { "command": "npx", "args": ["-y", "agents-handoff-mcp"] } } }
+{ "mcpServers": { "agents-handoff": { "command": "npx", "args": ["-y", "ryujin-handoff-mcp"] } } }
 ```
 
 ```toml
 [mcp_servers.agents-handoff]
 command = "npx"
-args = ["-y", "agents-handoff-mcp"]
+args = ["-y", "ryujin-handoff-mcp"]
 ```
 
 ### Pinning to one tree
@@ -29,7 +29,7 @@ args = ["-y", "agents-handoff-mcp"]
 Every tool takes a `project_dir`. To stop the server working anywhere else, pass `--root`:
 
 ```json
-{ "command": "npx", "args": ["-y", "agents-handoff-mcp", "--root", "/Users/me/code/backend"] }
+{ "command": "npx", "args": ["-y", "ryujin-handoff-mcp", "--root", "/Users/me/code/backend"] }
 ```
 
 ## Tools
@@ -111,7 +111,7 @@ very differently to a model.
 ## Troubleshooting
 
 **The client gives up while the server starts.** The first start downloads the package. Try
-again once it has finished, or install it (`npm i -g agents-handoff-mcp`) and use
+again once it has finished, or install it (`npm i -g ryujin-handoff-mcp`) and use
 `agents-handoff-mcp` as the command.
 
 **The tools are there but the agent never offers a route.** Configure `routes` in

@@ -1,7 +1,7 @@
 # CLI reference
 
 ```bash
-npm i -g agents-handoff
+npm i -g ryujin-handoff
 ```
 
 Installs `handoff` (and `agents-handoff` as an alias).

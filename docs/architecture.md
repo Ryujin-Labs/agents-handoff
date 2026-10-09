@@ -313,7 +313,7 @@ binary is missing.
 Any agent that speaks MCP needs nothing more than the server. For one that does not,
 adding it means writing an equivalent skill or command file against the same
 `handoff context` / `handoff create` / `handoff validate` commands. Nothing in `core` or
-`cli` knows Claude Code exists — the CLI depends on `agents-handoff-claude-code` only to
+`cli` knows Claude Code exists — the CLI depends on `ryujin-handoff-claude-code` only to
 copy its skill files during `handoff install`.
 
 ## Testing

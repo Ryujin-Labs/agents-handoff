@@ -1,6 +1,6 @@
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { packageRootOf } from 'agents-handoff-core';
+import { packageRootOf } from 'ryujin-handoff-core';
 
 /**
  * Claude Code integration for Agents Handoff.
@@ -24,7 +24,7 @@ export interface SkillFile {
   contents: string;
 }
 
-/** Root of the installed `agents-handoff-claude-code` package. */
+/** Root of the installed `ryujin-handoff-claude-code` package. */
 export function packageRoot(): string {
   return packageRootOf(import.meta.url);
 }

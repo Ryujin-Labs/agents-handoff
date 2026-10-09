@@ -1,5 +1,5 @@
 import type { CallToolResult } from '@modelcontextprotocol/server';
-import type { Issue } from 'agents-handoff-core';
+import type { Issue } from 'ryujin-handoff-core';
 
 /**
  * The SDK's own result type rather than a hand-rolled one: the callback signature accepts

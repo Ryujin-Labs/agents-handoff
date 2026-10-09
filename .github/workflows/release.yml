@@ -1,18 +1,36 @@
-name: Release
+name: Release (manual)
 
-# Publishes all four packages when a version tag is pushed, e.g. `git tag v0.1.0 && git
-# push origin v0.1.0`. Requires an `NPM_TOKEN` repository secret with publish rights.
+# Local publishing is the default; pushing a branch or tag never starts this workflow.
 on:
-  push:
-    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      acknowledge_actions_cost:
+        description: 'I verified Actions billing controls prevent charges for this run'
+        type: boolean
+        required: true
+        default: false
+      expected_npm_user:
+        description: 'Existing npm account that owns these public packages'
+        type: string
+        required: true
+      version:
+        description: 'Exact shared package version to publish (for example 0.1.0)'
+        type: string
+        required: true
 
 permissions:
   contents: read
-  id-token: write # npm provenance
+  id-token: write # npm provenance; only used on explicit manual dispatch
+
+concurrency:
+  group: npm-public-release
+  cancel-in-progress: false
 
 jobs:
   publish:
+    if: ${{ inputs.acknowledge_actions_cost }}
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -20,36 +38,15 @@ jobs:
           node-version: '22.x'
           registry-url: 'https://registry.npmjs.org'
           cache: npm
-      # The git collectors run real `git` against real temporary repositories, so the
-      # runner needs an identity for the fixture commits.
       - name: Configure git for fixtures
         run: |
           git config --global user.email "ci@example.com"
           git config --global user.name "CI"
           git config --global init.defaultBranch main
       - run: npm ci
-      - run: npm run build
-      - run: npm run test:only
-      - name: Tag matches package versions
-        run: |
-          tag="${GITHUB_REF_NAME#v}"
-          for ws in packages/core packages/mcp packages/cli packages/integrations/claude-code; do
-            version=$(node -p "require('./$ws/package.json').version")
-            [ "$version" = "$tag" ] || { echo "$ws is $version, tag is $tag"; exit 1; }
-          done
-      # Dependencies first: the CLI and the MCP server depend on core, the CLI on the plugin.
-      # A version already on the registry is skipped rather than failing the run, so a
-      # release published by hand can still be tagged.
-      - name: Publish
+      - name: Check and publish public packages
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-        run: |
-          for ws in packages/core packages/integrations/claude-code packages/mcp packages/cli; do
-            name=$(node -p "require('./$ws/package.json').name")
-            version=$(node -p "require('./$ws/package.json').version")
-            if npm view "$name@$version" version >/dev/null 2>&1; then
-              echo "$name@$version is already published; skipping"
-              continue
-            fi
-            npm publish --workspace "$ws" --provenance --access public
-          done
+          EXPECTED_NPM_USER: ${{ inputs.expected_npm_user }}
+          RELEASE_VERSION: ${{ inputs.version }}
+        run: node scripts/release.mjs --publish --expected-user "$EXPECTED_NPM_USER" --version "$RELEASE_VERSION" --provenance
