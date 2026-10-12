@@ -53,7 +53,7 @@ Fix every error. Warnings are advice — \`too-long\`, \`diff-dump\` and \`unstr
   },
 
   report: {
-    after: `Export the complete Markdown file and give the developer its path or a downloadable file.
+    after: `Export the complete Markdown file, then hand it to the developer. If you have a tool that sends a file to them — the Claude desktop app does — send the exported \`.md\` so they can download it, and say where it lives in the repository. Otherwise give the path.
 
 With the \`handoff_*\` MCP tools, call \`handoff_export\` for the stored handoff. Without them:
 

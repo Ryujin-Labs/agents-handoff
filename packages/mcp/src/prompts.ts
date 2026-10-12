@@ -25,7 +25,7 @@ const AUTHORING_MECHANICS = {
     'Call `handoff_write`. You supply only prose — the schema version, id, timestamp, branch, commit and revision range come from git, and the section headings are generated.\n\nThe document is validated before it is stored. If it does not conform, nothing is written and you get the errors back; fix them and call the tool again.',
   report: {
     after:
-      'Call `handoff_export` after `handoff_write` to produce a local Markdown file and return its full contents. Report its path, targets, breaking status, and Required Actions. If you generated handoffs for several targets, identify each file and what it covers.',
+      'Call `handoff_export` after `handoff_write` to produce a local Markdown file and return its full contents. If your client can hand the developer a file, present the exported file so they can download it. Report its path, targets, breaking status, and Required Actions. If you generated handoffs for several targets, identify each file and what it covers.',
   },
   check:
     'Ask with your client\'s question tool if it has one, your proposal as the first option; otherwise in one short message. If the tool returns before the developer has answered, stop there: end your turn with at most a line pointing at the question. Do not ask it again as text, and do not start work that depends on the answer.',

@@ -160,7 +160,7 @@ Finish with the file paths and the Required Actions. Do not ask for a delivery c
 
 Do not commit anything.
 
-Export the complete Markdown file and give the developer its path or a downloadable file.
+Export the complete Markdown file, then hand it to the developer. If you have a tool that sends a file to them — the Claude desktop app does — send the exported `.md` so they can download it, and say where it lives in the repository. Otherwise give the path.
 
 With the `handoff_*` MCP tools, call `handoff_export` for the stored handoff. Without them:
 

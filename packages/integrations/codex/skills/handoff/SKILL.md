@@ -129,4 +129,4 @@ Finish with the file paths and the Required Actions. Do not ask for a delivery c
 
 Do not commit anything.
 
-Call `handoff_export` after `handoff_write` to produce a local Markdown file and return its full contents. Report its path, targets, breaking status, and Required Actions. If you generated handoffs for several targets, identify each file and what it covers.
+Call `handoff_export` after `handoff_write` to produce a local Markdown file and return its full contents. If your client can hand the developer a file, present the exported file so they can download it. Report its path, targets, breaking status, and Required Actions. If you generated handoffs for several targets, identify each file and what it covers.
